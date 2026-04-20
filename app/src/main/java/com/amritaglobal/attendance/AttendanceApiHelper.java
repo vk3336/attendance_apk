@@ -3,6 +3,7 @@ package com.amritaglobal.attendance;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.net.Uri;
+import android.util.Base64;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -21,7 +22,6 @@ import java.util.concurrent.TimeUnit;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.MediaType;
-import okhttp3.MultipartBody;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -60,6 +60,11 @@ public class AttendanceApiHelper {
         public boolean lunchOut;
         public boolean lunchIn;
         public boolean checkedOut;
+        // IST display times (null if not done)
+        public String checkInTime;
+        public String lunchOutTime;
+        public String lunchInTime;
+        public String checkOutTime;
     }
 
     public static class Employee {
@@ -128,6 +133,16 @@ public class AttendanceApiHelper {
         return sdf.format(new Date(millis));
     }
 
+    /** Parse a UTC datetime string from EspoCRM and return IST time as "hh:mm:ss a" */
+    private String toIst(String utcStr, SimpleDateFormat parser, SimpleDateFormat istFormatter) {
+        try {
+            Date d = parser.parse(utcStr);
+            return istFormatter.format(d);
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
     private byte[] readAllBytes(InputStream inputStream) throws IOException {
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         byte[] chunk = new byte[4096];
@@ -187,10 +202,16 @@ public class AttendanceApiHelper {
     public void fetchTodayAttendance(String employeeMasterId, AttendanceStateCallback callback) {
         if (!isConfigured()) { callback.onError("API not configured."); return; }
 
+        // Build today's date range in UTC (EspoCRM stores in UTC)
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH);
+        sdf.setTimeZone(TimeZone.getTimeZone("Asia/Kolkata"));
+        String todayDate = sdf.format(new Date());
+
+        // Filter by employeeMasterId and checkInAt date (today in IST)
+        // Use createdAt today filter as primary, then verify by date in response
         String url = getAttendanceUrl()
-                + "?maxSize=5&offset=0"
+                + "?maxSize=10&offset=0"
                 + "&where[0][type]=equals&where[0][attribute]=employeeMasterId&where[0][value]=" + employeeMasterId
-                + "&where[1][type]=today&where[1][attribute]=createdAt"
                 + "&orderBy=createdAt&order=desc";
 
         client.newCall(baseRequest(url).get().build()).enqueue(new Callback() {
@@ -205,12 +226,44 @@ public class AttendanceApiHelper {
                     JSONObject json = new JSONObject(body);
                     JSONArray list = json.optJSONArray("list");
                     if (list == null || list.length() == 0) { callback.onSuccess(state); return; }
-                    JSONObject rec = list.getJSONObject(0);
-                    state.recordId   = rec.optString("id", null);
-                    state.checkedIn  = !rec.isNull("checkInAt");
-                    state.lunchOut   = !rec.isNull("lunchOutAt");
-                    state.lunchIn    = !rec.isNull("lunchInAt");
-                    state.checkedOut = !rec.isNull("checkOutAt");
+
+                    // Find today's record by matching createdAt date in IST
+                    SimpleDateFormat recSdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.ENGLISH);
+                    recSdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+                    SimpleDateFormat dateSdf = new SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH);
+                    dateSdf.setTimeZone(TimeZone.getTimeZone("Asia/Kolkata"));
+                    SimpleDateFormat timeSdf = new SimpleDateFormat("hh:mm:ss a", Locale.ENGLISH);
+                    timeSdf.setTimeZone(TimeZone.getTimeZone("Asia/Kolkata"));
+
+                    for (int i = 0; i < list.length(); i++) {
+                        JSONObject rec = list.getJSONObject(i);
+                        String createdAt = rec.optString("createdAt", "");
+                        if (!createdAt.isEmpty()) {
+                            try {
+                                Date recDate = recSdf.parse(createdAt);
+                                String recDateStr = dateSdf.format(recDate);
+                                if (recDateStr.equals(todayDate)) {
+                                    state.recordId   = rec.optString("id", null);
+
+                                    String ciAt  = rec.optString("checkInAt",  "");
+                                    String loAt  = rec.optString("lunchOutAt", "");
+                                    String liAt  = rec.optString("lunchInAt",  "");
+                                    String coAt  = rec.optString("checkOutAt", "");
+
+                                    state.checkedIn  = !ciAt.isEmpty() && !ciAt.equals("null");
+                                    state.lunchOut   = !loAt.isEmpty() && !loAt.equals("null");
+                                    state.lunchIn    = !liAt.isEmpty() && !liAt.equals("null");
+                                    state.checkedOut = !coAt.isEmpty() && !coAt.equals("null");
+
+                                    if (state.checkedIn)  state.checkInTime  = toIst(ciAt, recSdf, timeSdf);
+                                    if (state.lunchOut)   state.lunchOutTime = toIst(loAt, recSdf, timeSdf);
+                                    if (state.lunchIn)    state.lunchInTime  = toIst(liAt, recSdf, timeSdf);
+                                    if (state.checkedOut) state.checkOutTime = toIst(coAt, recSdf, timeSdf);
+                                    break;
+                                }
+                            } catch (Exception ignored) {}
+                        }
+                    }
                     callback.onSuccess(state);
                 } catch (Exception e) {
                     callback.onError("Parse error: " + e.getMessage());
@@ -222,6 +275,7 @@ public class AttendanceApiHelper {
     }
 
     // ── Upload Selfie ─────────────────────────────────────────────────────────
+    // EspoCRM expects JSON body: { "name", "type", "relatedType", "field", "file" (base64) }
 
     public void uploadSelfie(Uri selfieUri, String fieldName, UploadCallback callback) {
         if (selfieUri == null) { callback.onSuccess(null, null); return; }
@@ -233,24 +287,29 @@ public class AttendanceApiHelper {
                 inputStream.close();
 
                 String fileName = fieldName + "_" + System.currentTimeMillis() + ".jpg";
+                // EspoCRM base64 format: "data:image/jpeg;base64,<data>"
+                String base64Data = "data:image/jpeg;base64," +
+                        Base64.encodeToString(imageBytes, Base64.NO_WRAP);
+
                 String uploadUrl = getApiRoot() + "/Attachment";
 
-                RequestBody body = new MultipartBody.Builder()
-                        .setType(MultipartBody.FORM)
-                        .addFormDataPart("name", fileName)
-                        .addFormDataPart("type", "image/jpeg")
-                        .addFormDataPart("relatedType", "CAttendance")
-                        .addFormDataPart("field", fieldName)
-                        .addFormDataPart("file", fileName,
-                                RequestBody.create(imageBytes, MediaType.parse("image/jpeg")))
-                        .build();
+                JSONObject body = new JSONObject();
+                body.put("name", fileName);
+                body.put("type", "image/jpeg");
+                body.put("relatedType", "CAttendance");
+                body.put("field", fieldName);
+                body.put("file", base64Data);
 
-                try (Response response = client.newCall(baseRequest(uploadUrl).post(body).build()).execute()) {
+                try (Response response = client.newCall(
+                        baseRequest(uploadUrl)
+                                .post(RequestBody.create(body.toString(), MediaType.parse("application/json")))
+                                .build()).execute()) {
+                    String respBody = response.body() != null ? response.body().string() : "{}";
                     if (!response.isSuccessful()) {
-                        callback.onError("Upload failed: " + response.code());
+                        callback.onError("Upload failed: " + response.code() + " - " + respBody);
                         return;
                     }
-                    JSONObject json = new JSONObject(response.body() != null ? response.body().string() : "{}");
+                    JSONObject json = new JSONObject(respBody);
                     callback.onSuccess(json.optString("id", null), json.optString("name", fileName));
                 }
             } catch (Exception e) {

@@ -76,6 +76,7 @@ public class MainActivity extends AppCompatActivity {
     private boolean locationFetched = false;
     private Uri selfieUri = null;
     private Bitmap selfieBitmap = null;
+    private long frozenTimestamp = 0; // captured when employee is selected (clock freeze point)
 
     // Location
     private FusedLocationProviderClient fusedLocationClient;
@@ -219,14 +220,90 @@ public class MainActivity extends AppCompatActivity {
         rbLunchIn.setEnabled(false);
         rbCheckOut.setEnabled(false);
         radioGroupAttendance.clearCheck();
-        // clock and location keep running — no reset here
+        // Reset labels to plain text
+        rbCheckIn.setText("✅  Check In");
+        rbLunchOut.setText("🍽️  Lunch Out");
+        rbLunchIn.setText("🍴  Lunch In");
+        rbCheckOut.setText("🚪  Check Out");
+        // Restart clock when employee is deselected
+        startClock();
     }
 
     private void enableAttendanceControls() {
-        rbCheckIn.setEnabled(true);
-        rbLunchOut.setEnabled(true);
-        rbLunchIn.setEnabled(true);
-        rbCheckOut.setEnabled(true);
+        // Freeze clock and capture timestamp at this exact moment
+        frozenTimestamp = System.currentTimeMillis();
+        stopClock();
+
+        // Fetch today's attendance state and enable controls accordingly
+        AttendanceApiHelper apiHelper = new AttendanceApiHelper(this);
+        apiHelper.fetchTodayAttendance(selectedEmployee, new AttendanceApiHelper.AttendanceStateCallback() {
+            @Override
+            public void onSuccess(AttendanceApiHelper.AttendanceState state) {
+                runOnUiThread(() -> updateAttendanceButtons(state));
+            }
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    // On error, default to check-in only
+                    rbCheckIn.setEnabled(true);
+                    rbLunchOut.setEnabled(false);
+                    rbLunchIn.setEnabled(false);
+                    rbCheckOut.setEnabled(false);
+                    Toast.makeText(MainActivity.this,
+                        "Could not fetch attendance status: " + error, Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
+    }
+
+    private void updateAttendanceButtons(AttendanceApiHelper.AttendanceState state) {
+        // Reset labels first
+        rbCheckIn.setText("✅  Check In");
+        rbLunchOut.setText("🍽️  Lunch Out");
+        rbLunchIn.setText("🍴  Lunch In");
+        rbCheckOut.setText("🚪  Check Out");
+
+        // Append done time to completed types
+        if (state.checkedIn  && state.checkInTime  != null) rbCheckIn.setText("✅  Check In     " + state.checkInTime);
+        if (state.lunchOut   && state.lunchOutTime != null) rbLunchOut.setText("🍽️  Lunch Out   " + state.lunchOutTime);
+        if (state.lunchIn    && state.lunchInTime  != null) rbLunchIn.setText("🍴  Lunch In     " + state.lunchInTime);
+        if (state.checkedOut && state.checkOutTime != null) rbCheckOut.setText("🚪  Check Out  " + state.checkOutTime);
+
+        // Workflow rules:
+        // 1. If nothing done today → only Check In enabled
+        // 2. If Check In done → Lunch Out and Check Out enabled (employee can skip lunch)
+        // 3. If Lunch Out done → only Lunch In enabled (must complete lunch before checkout)
+        // 4. If Lunch In done → only Check Out enabled
+        // 5. If Check Out done → all disabled (day complete)
+
+        if (!state.checkedIn) {
+            rbCheckIn.setEnabled(true);
+            rbLunchOut.setEnabled(false);
+            rbLunchIn.setEnabled(false);
+            rbCheckOut.setEnabled(false);
+        } else if (state.checkedOut) {
+            rbCheckIn.setEnabled(false);
+            rbLunchOut.setEnabled(false);
+            rbLunchIn.setEnabled(false);
+            rbCheckOut.setEnabled(false);
+            Toast.makeText(this, "✅ Attendance already completed for today", Toast.LENGTH_LONG).show();
+        } else if (state.lunchOut && !state.lunchIn) {
+            rbCheckIn.setEnabled(false);
+            rbLunchOut.setEnabled(false);
+            rbLunchIn.setEnabled(true);
+            rbCheckOut.setEnabled(false);
+        } else if (state.lunchIn) {
+            rbCheckIn.setEnabled(false);
+            rbLunchOut.setEnabled(false);
+            rbLunchIn.setEnabled(false);
+            rbCheckOut.setEnabled(true);
+        } else {
+            // Check-in done, can do lunch out or check out (skip lunch for half day)
+            rbCheckIn.setEnabled(false);
+            rbLunchOut.setEnabled(true);
+            rbLunchIn.setEnabled(false);
+            rbCheckOut.setEnabled(true);
+        }
     }
 
     private void setupRadioButtons() {
@@ -485,8 +562,9 @@ public class MainActivity extends AppCompatActivity {
         locationFetched = false;
         currentLat = 0;
         currentLng = 0;
-        startClock();
-        fetchLocation();
+        frozenTimestamp = 0;
+        startClock();       // restart live clock
+        fetchLocation();    // re-fetch location
         loadEmployees();
         Toast.makeText(this, "Refreshed", Toast.LENGTH_SHORT).show();
     }
@@ -516,80 +594,92 @@ public class MainActivity extends AppCompatActivity {
         else if (checkedId == R.id.rbLunchIn)  attendanceType = "lunchIn";
         else                                   attendanceType = "checkOut";
 
-        long now = System.currentTimeMillis();
+        long now = frozenTimestamp > 0 ? frozenTimestamp : System.currentTimeMillis();
         AttendanceApiHelper apiHelper = new AttendanceApiHelper(this);
 
         btnSubmit.setEnabled(false);
         btnSubmit.setText("Submitting...");
 
-        // First upload the selfie, then create/update the record
-        String selfieField = attendanceType.equals("checkIn") ? "checkInSelfie"
-                : attendanceType.equals("lunchOut") ? "lunchOutSelfie"
-                : attendanceType.equals("lunchIn")  ? "lunchInSelfie"
-                : "checkOutSelfie";
+        // Map attendance type to exact API selfie field names
+        String selfieField;
+        switch (attendanceType) {
+            case "checkIn":   selfieField = "checkInSelfie";  break;
+            case "lunchOut":  selfieField = "lunchOutSelfie"; break;
+            case "lunchIn":   selfieField = "lunchInSelfie";  break;
+            default:          selfieField = "checkOutSelfie"; break;
+        }
 
-        apiHelper.uploadSelfie(selfieUri, selfieField, new AttendanceApiHelper.UploadCallback() {
+        final String finalAttendanceType = attendanceType;
+
+        // Always fetch today's state first to get record ID and validate workflow
+        apiHelper.fetchTodayAttendance(selectedEmployee, new AttendanceApiHelper.AttendanceStateCallback() {
             @Override
-            public void onSuccess(String attachmentId, String attachmentName) {
-                AttendanceApiHelper.ApiCallback done = new AttendanceApiHelper.ApiCallback() {
-                    @Override public void onSuccess(String message) {
-                        runOnUiThread(() -> {
-                            Toast.makeText(MainActivity.this,
-                                    "✅ Attendance submitted successfully!", Toast.LENGTH_LONG).show();
-                            btnSubmit.setEnabled(true);
-                            btnSubmit.setText("Submit");
-                            refreshAll();
-                        });
-                    }
-                    @Override public void onError(String error) {
-                        runOnUiThread(() -> {
-                            Toast.makeText(MainActivity.this,
-                                    "❌ Error: " + error, Toast.LENGTH_LONG).show();
-                            btnSubmit.setEnabled(true);
-                            btnSubmit.setText("Submit");
-                        });
-                    }
-                };
+            public void onSuccess(AttendanceApiHelper.AttendanceState state) {
+                // Validate workflow state before proceeding
+                if (!finalAttendanceType.equals("checkIn") && state.recordId == null) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(MainActivity.this,
+                                "No check-in found for today. Please check in first.",
+                                Toast.LENGTH_LONG).show();
+                        btnSubmit.setEnabled(true);
+                        btnSubmit.setText("Submit");
+                    });
+                    return;
+                }
 
-                if (attendanceType.equals("checkIn")) {
-                    apiHelper.createAttendance(selectedEmployee, selectedEmployeeName,
-                            now, currentLat, currentLng, attachmentId, attachmentName, done);
-                } else {
-                    // Need today's record ID — fetch state first
-                    apiHelper.fetchTodayAttendance(selectedEmployee,
-                            new AttendanceApiHelper.AttendanceStateCallback() {
-                        @Override public void onSuccess(AttendanceApiHelper.AttendanceState state) {
-                            if (state.recordId == null) {
+                // Upload selfie then create/update record
+                apiHelper.uploadSelfie(selfieUri, selfieField, new AttendanceApiHelper.UploadCallback() {
+                    @Override
+                    public void onSuccess(String attachmentId, String attachmentName) {
+                        AttendanceApiHelper.ApiCallback done = new AttendanceApiHelper.ApiCallback() {
+                            @Override public void onSuccess(String message) {
                                 runOnUiThread(() -> {
                                     Toast.makeText(MainActivity.this,
-                                            "No check-in record found for today. Please check in first.",
-                                            Toast.LENGTH_LONG).show();
+                                            "✅ Attendance submitted successfully!", Toast.LENGTH_LONG).show();
                                     btnSubmit.setEnabled(true);
                                     btnSubmit.setText("Submit");
+                                    refreshAll(); // restarts clock + location
                                 });
-                                return;
                             }
-                            apiHelper.updateAttendance(state.recordId, attendanceType,
+                            @Override public void onError(String error) {
+                                runOnUiThread(() -> {
+                                    Toast.makeText(MainActivity.this,
+                                            "❌ Error: " + error, Toast.LENGTH_LONG).show();
+                                    btnSubmit.setEnabled(true);
+                                    btnSubmit.setText("Submit");
+                                    startClock(); // restart clock on failure too
+                                });
+                            }
+                        };
+
+                        if (finalAttendanceType.equals("checkIn")) {
+                            apiHelper.createAttendance(selectedEmployee, selectedEmployeeName,
+                                    now, currentLat, currentLng, attachmentId, attachmentName, done);
+                        } else {
+                            apiHelper.updateAttendance(state.recordId, finalAttendanceType,
                                     now, currentLat, currentLng, attachmentId, attachmentName, done);
                         }
-                        @Override public void onError(String error) {
-                            runOnUiThread(() -> {
-                                Toast.makeText(MainActivity.this,
-                                        "❌ Error fetching record: " + error, Toast.LENGTH_LONG).show();
-                                btnSubmit.setEnabled(true);
-                                btnSubmit.setText("Submit");
-                            });
-                        }
-                    });
-                }
+                    }
+                    @Override
+                    public void onError(String error) {
+                        runOnUiThread(() -> {
+                            Toast.makeText(MainActivity.this,
+                                    "❌ Selfie upload failed: " + error, Toast.LENGTH_LONG).show();
+                            btnSubmit.setEnabled(true);
+                            btnSubmit.setText("Submit");
+                            startClock(); // restart clock on upload failure
+                        });
+                    }
+                });
             }
             @Override
             public void onError(String error) {
                 runOnUiThread(() -> {
                     Toast.makeText(MainActivity.this,
-                            "❌ Selfie upload failed: " + error, Toast.LENGTH_LONG).show();
+                            "❌ Error checking attendance status: " + error, Toast.LENGTH_LONG).show();
                     btnSubmit.setEnabled(true);
                     btnSubmit.setText("Submit");
+                    startClock(); // restart clock on state fetch failure
                 });
             }
         });
