@@ -1,0 +1,600 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/background">
+
+    <!-- HEADER -->
+    <LinearLayout
+        android:id="@+id/header"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="@drawable/header_gradient"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
+        android:gravity="center_vertical"
+        android:elevation="6dp">
+
+        <!-- Real Company Logo -->
+        <ImageView
+            android:id="@+id/ivLogo"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:src="@drawable/logo_company"
+            android:scaleType="centerCrop"
+            android:background="@drawable/logo_circle_bg"
+            android:clipToOutline="true"
+            android:contentDescription="Company Logo" />
+
+        <!-- Company Name -->
+        <TextView
+            android:id="@+id/tvCompanyName"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/company_name"
+            android:textColor="@color/primary_dark"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:maxLines="2"
+            android:paddingStart="10dp"
+            android:paddingEnd="6dp" />
+
+        <!-- Refresh Button -->
+        <ImageButton
+            android:id="@+id/btnRefresh"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_refresh"
+            android:background="@drawable/icon_btn_bg"
+            android:contentDescription="Refresh"
+            android:padding="8dp" />
+
+        <View android:layout_width="6dp" android:layout_height="1dp" />
+
+        <!-- Settings Button -->
+        <ImageButton
+            android:id="@+id/btnSettings"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_settings"
+            android:background="@drawable/icon_btn_bg"
+            android:contentDescription="Settings"
+            android:padding="8dp" />
+
+    </LinearLayout>
+
+    <!-- BODY SCROLL -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="14dp">
+
+            <!-- Employee Select Card -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                style="@style/CardStyle"
+                android:layout_marginBottom="12dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="14dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="👤  SELECT EMPLOYEE"
+                        style="@style/SectionTitle"
+                        android:layout_marginBottom="8dp" />
+
+                    <Spinner
+                        android:id="@+id/spinnerEmployee"
+                        android:layout_width="match_parent"
+                        android:layout_height="52dp"
+                        android:background="@drawable/spinner_bg"
+                        android:paddingStart="14dp"
+                        android:paddingEnd="14dp" />
+
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- Attendance Type Card -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                style="@style/CardStyle"
+                android:layout_marginBottom="12dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="14dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="📋  ATTENDANCE TYPE"
+                        style="@style/SectionTitle"
+                        android:layout_marginBottom="10dp" />
+
+                    <!-- Vertical RadioGroup -->
+                    <RadioGroup
+                        android:id="@+id/radioGroupAttendance"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <RadioButton
+                            android:id="@+id/rbCheckIn"
+                            android:layout_width="match_parent"
+                            android:layout_height="48dp"
+                            android:text="✅  Check In"
+                            style="@style/RadioButtonStyle"
+                            android:background="@drawable/radio_item_bg"
+                            android:layout_marginBottom="6dp"
+                            android:paddingStart="12dp"
+                            android:gravity="center_vertical"
+                            android:enabled="false" />
+
+                        <RadioButton
+                            android:id="@+id/rbLunchOut"
+                            android:layout_width="match_parent"
+                            android:layout_height="48dp"
+                            android:text="🍽️  Lunch Out"
+                            style="@style/RadioButtonStyle"
+                            android:background="@drawable/radio_item_bg"
+                            android:layout_marginBottom="6dp"
+                            android:paddingStart="12dp"
+                            android:gravity="center_vertical"
+                            android:enabled="false" />
+
+                        <RadioButton
+                            android:id="@+id/rbLunchIn"
+                            android:layout_width="match_parent"
+                            android:layout_height="48dp"
+                            android:text="🍴  Lunch In"
+                            style="@style/RadioButtonStyle"
+                            android:background="@drawable/radio_item_bg"
+                            android:layout_marginBottom="6dp"
+                            android:paddingStart="12dp"
+                            android:gravity="center_vertical"
+                            android:enabled="false" />
+
+                        <RadioButton
+                            android:id="@+id/rbCheckOut"
+                            android:layout_width="match_parent"
+                            android:layout_height="48dp"
+                            android:text="🚪  Check Out"
+                            style="@style/RadioButtonStyle"
+                            android:background="@drawable/radio_item_bg"
+                            android:paddingStart="12dp"
+                            android:gravity="center_vertical"
+                            android:enabled="false" />
+
+                    </RadioGroup>
+
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- Date Time Card -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                style="@style/CardStyle"
+                android:layout_marginBottom="12dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="14dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🕐  DATE &amp; TIME (IST)"
+                        style="@style/SectionTitle"
+                        android:layout_marginBottom="10dp" />
+
+                    <!-- Date row -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginBottom="8dp">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical"
+                            android:background="@drawable/datetime_date_bg"
+                            android:padding="12dp"
+                            android:gravity="center"
+                            android:layout_marginEnd="6dp">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="📅"
+                                android:textSize="20sp"
+                                android:layout_marginBottom="2dp" />
+
+                            <TextView
+                                android:id="@+id/tvDate"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="-- --- ----"
+                                android:textSize="14sp"
+                                android:textStyle="bold"
+                                android:textColor="@color/primary_dark"
+                                android:gravity="center" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="DATE"
+                                android:textSize="10sp"
+                                android:textColor="@color/text_secondary"
+                                android:letterSpacing="0.1"
+                                android:layout_marginTop="2dp" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical"
+                            android:background="@drawable/datetime_time_bg"
+                            android:padding="12dp"
+                            android:gravity="center"
+                            android:layout_marginStart="6dp">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="⏰"
+                                android:textSize="20sp"
+                                android:layout_marginBottom="2dp" />
+
+                            <TextView
+                                android:id="@+id/tvTime"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="--:--:-- --"
+                                android:textSize="14sp"
+                                android:textStyle="bold"
+                                android:textColor="#E65100"
+                                android:gravity="center" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="TIME (IST)"
+                                android:textSize="10sp"
+                                android:textColor="@color/text_secondary"
+                                android:letterSpacing="0.1"
+                                android:layout_marginTop="2dp" />
+                        </LinearLayout>
+
+                    </LinearLayout>
+
+                    <!-- Hidden combined tvDateTime for backward compat -->
+                    <TextView
+                        android:id="@+id/tvDateTime"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:visibility="gone" />
+
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- Location Card -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                style="@style/CardStyle"
+                android:layout_marginBottom="12dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="14dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="10dp">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="📍  CURRENT LOCATION"
+                            style="@style/SectionTitle" />
+
+                        <!-- Auto-fetch status indicator -->
+                        <TextView
+                            android:id="@+id/tvLocationStatus"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Fetching..."
+                            android:textSize="11sp"
+                            android:textColor="@color/accent"
+                            android:visibility="gone" />
+
+                    </LinearLayout>
+
+                    <!-- Lat/Lng display -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:background="@drawable/location_bg"
+                        android:padding="10dp"
+                        android:layout_marginBottom="8dp">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical"
+                            android:gravity="center">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="LATITUDE"
+                                android:textSize="10sp"
+                                android:textColor="@color/text_secondary"
+                                android:textStyle="bold"
+                                android:letterSpacing="0.08" />
+
+                            <TextView
+                                android:id="@+id/tvLat"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="--"
+                                android:textSize="14sp"
+                                android:textStyle="bold"
+                                android:textColor="@color/primary_dark"
+                                android:layout_marginTop="2dp" />
+                        </LinearLayout>
+
+                        <View
+                            android:layout_width="1dp"
+                            android:layout_height="match_parent"
+                            android:background="@color/divider"
+                            android:layout_marginStart="8dp"
+                            android:layout_marginEnd="8dp" />
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical"
+                            android:gravity="center">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="LONGITUDE"
+                                android:textSize="10sp"
+                                android:textColor="@color/text_secondary"
+                                android:textStyle="bold"
+                                android:letterSpacing="0.08" />
+
+                            <TextView
+                                android:id="@+id/tvLng"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="--"
+                                android:textSize="14sp"
+                                android:textStyle="bold"
+                                android:textColor="@color/primary_dark"
+                                android:layout_marginTop="2dp" />
+                        </LinearLayout>
+
+                    </LinearLayout>
+
+                    <!-- Hidden combined tvLatLng for backward compat -->
+                    <TextView
+                        android:id="@+id/tvLatLng"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:visibility="gone" />
+
+                    <TextView
+                        android:id="@+id/tvAddress"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="📍 Fetching address..."
+                        android:textSize="12sp"
+                        android:textColor="#546E7A"
+                        android:layout_marginBottom="10dp" />
+
+                    <!-- Map View -->
+                    <FrameLayout
+                        android:id="@+id/mapContainer"
+                        android:layout_width="match_parent"
+                        android:layout_height="180dp"
+                        android:background="@drawable/map_placeholder_bg"
+                        android:clipToOutline="true">
+
+                        <WebView
+                            android:id="@+id/webViewMap"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent" />
+
+                        <LinearLayout
+                            android:id="@+id/mapHintLayout"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:orientation="vertical"
+                            android:gravity="center">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="📍"
+                                android:textSize="32sp" />
+
+                            <TextView
+                                android:id="@+id/tvMapHint"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center"
+                                android:text="Fetching your location..."
+                                android:textSize="13sp"
+                                android:textColor="#546E7A"
+                                android:gravity="center"
+                                android:layout_marginTop="6dp" />
+                        </LinearLayout>
+
+                    </FrameLayout>
+
+                    <!-- Manual refresh location button -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnGetLocation"
+                        android:layout_width="match_parent"
+                        android:layout_height="40dp"
+                        android:text="🔄  Refresh Location"
+                        android:textSize="12sp"
+                        app:cornerRadius="8dp"
+                        android:backgroundTint="@color/accent"
+                        android:layout_marginTop="10dp" />
+
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- Camera / Selfie Card -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                style="@style/CardStyle"
+                android:layout_marginBottom="16dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="14dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="📷  SELFIE VERIFICATION"
+                        style="@style/SectionTitle"
+                        android:layout_marginBottom="10dp" />
+
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="220dp"
+                        android:background="@drawable/camera_preview_bg">
+
+                        <ImageView
+                            android:id="@+id/ivSelfiePreview"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:scaleType="centerCrop"
+                            android:visibility="gone" />
+
+                        <LinearLayout
+                            android:id="@+id/cameraPlaceholder"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:orientation="vertical"
+                            android:gravity="center">
+
+                            <ImageView
+                                android:layout_width="56dp"
+                                android:layout_height="56dp"
+                                android:src="@drawable/ic_camera_large"
+                                android:alpha="0.4" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="No selfie taken"
+                                android:textSize="13sp"
+                                android:textColor="#90A4AE"
+                                android:layout_marginTop="8dp" />
+                        </LinearLayout>
+
+                    </FrameLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="10dp"
+                        android:gravity="center">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnTakeSelfie"
+                            android:layout_width="0dp"
+                            android:layout_height="48dp"
+                            android:layout_weight="1"
+                            android:text="📷  Take Selfie"
+                            android:textSize="14sp"
+                            app:cornerRadius="10dp"
+                            android:backgroundTint="@color/camera_btn"
+                            android:layout_marginEnd="6dp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnRetakeSelfie"
+                            android:layout_width="0dp"
+                            android:layout_height="48dp"
+                            android:layout_weight="1"
+                            android:text="🔄  Retake"
+                            android:textSize="14sp"
+                            app:cornerRadius="10dp"
+                            android:backgroundTint="@color/orange"
+                            android:visibility="gone"
+                            android:layout_marginStart="6dp" />
+
+                    </LinearLayout>
+
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- Submit Button - Full width, prominent -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSubmit"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:text="✅  SUBMIT ATTENDANCE"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="@color/white"
+                android:letterSpacing="0.05"
+                app:cornerRadius="14dp"
+                android:backgroundTint="@color/submit_btn"
+                app:icon="@null"
+                android:elevation="4dp"
+                android:layout_marginBottom="24dp"
+                android:layout_marginTop="4dp" />
+
+        </LinearLayout>
+    </ScrollView>
+
+</LinearLayout>

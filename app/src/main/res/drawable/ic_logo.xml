@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- White circle outline / background -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,6 C27.49,6 6,27.49 6,54 C6,80.51 27.49,102 54,102 C80.51,102 102,80.51 102,54 C102,27.49 80.51,6 54,6 Z" />
+
+    <!-- Dark navy base globe shape -->
+    <path
+        android:fillColor="#1A2B6B"
+        android:pathData="M54,10 C29.7,10 10,29.7 10,54 C10,78.3 29.7,98 54,98 C78.3,98 98,78.3 98,54 C98,29.7 78.3,10 54,10 Z" />
+
+    <!-- Top blue band -->
+    <path
+        android:fillColor="#2B3F9E"
+        android:pathData="M22,28 C30,18 42,12 54,10 C66,8 78,13 87,21 L80,30 C72,23 63,19 54,20 C44,21 34,26 26,34 Z" />
+
+    <!-- Top orange/gold accent stripe -->
+    <path
+        android:fillColor="#F5A623"
+        android:pathData="M26,34 C34,26 44,21 54,20 C58,20 62,21 66,23 L58,33 C55,32 52,32 49,33 C43,35 37,39 32,44 Z"
+        android:fillAlpha="0.95"/>
+
+    <!-- Top orange gradient inner -->
+    <path
+        android:fillColor="#E8720C"
+        android:pathData="M32,44 C37,39 43,35 49,33 C46,35 43,38 40,42 Z" />
+
+    <!-- Middle blue band -->
+    <path
+        android:fillColor="#2B3F9E"
+        android:pathData="M14,52 C14,46 15,40 18,35 L30,42 C28,46 27,50 27,54 C27,58 28,62 30,66 L18,72 C15,66 14,59 14,52 Z" />
+
+    <!-- Middle diagonal blue stripe -->
+    <path
+        android:fillColor="#1E3080"
+        android:pathData="M18,35 C22,28 28,22 35,18 L46,28 C40,31 35,36 31,42 Z" />
+
+    <!-- Middle orange/gold accent stripe -->
+    <path
+        android:fillColor="#F5A623"
+        android:pathData="M35,18 C42,14 50,12 58,12 L62,24 C55,23 48,24 42,27 Z"
+        android:fillAlpha="0.9"/>
+
+    <!-- Second diagonal blue band (middle) -->
+    <path
+        android:fillColor="#2B3F9E"
+        android:pathData="M30,58 C32,52 36,47 41,43 L55,50 C51,53 48,57 47,62 C46,66 47,70 49,74 L35,78 C31,72 29,65 30,58 Z" />
+
+    <!-- Second orange accent -->
+    <path
+        android:fillColor="#F5A623"
+        android:pathData="M41,43 C47,39 54,37 61,37 L65,48 C59,47 53,49 48,53 Z"
+        android:fillAlpha="0.95"/>
+
+    <!-- Second orange inner -->
+    <path
+        android:fillColor="#E8720C"
+        android:pathData="M48,53 C53,49 59,47 65,48 L62,55 C57,54 52,56 48,59 Z" />
+
+    <!-- Bottom blue band -->
+    <path
+        android:fillColor="#1A2B6B"
+        android:pathData="M35,78 C40,84 47,89 54,91 C61,93 69,92 76,88 L68,79 C63,82 58,83 54,83 C49,83 44,81 40,78 Z" />
+
+    <!-- Bottom orange accent -->
+    <path
+        android:fillColor="#F5A623"
+        android:pathData="M54,72 C60,70 67,70 73,73 L76,82 C70,86 63,88 56,88 L54,78 C56,77 57,75 54,72 Z"
+        android:fillAlpha="0.9"/>
+
+    <!-- Bottom orange inner glow -->
+    <path
+        android:fillColor="#E8720C"
+        android:pathData="M54,72 C57,73 60,75 62,78 L58,82 C56,80 54,78 54,78 Z" />
+
+    <!-- Right side blue -->
+    <path
+        android:fillColor="#2B3F9E"
+        android:pathData="M76,28 C84,35 90,44 93,54 C96,64 94,75 88,83 L78,75 C83,69 85,62 84,55 C83,48 79,41 74,36 Z" />
+
+    <!-- White highlight lines between bands (top) -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.5"
+        android:fillColor="#00000000"
+        android:pathData="M26,34 C34,26 44,21 54,20 C63,19 72,23 80,30" />
+
+    <!-- White highlight lines between bands (middle) -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.5"
+        android:fillColor="#00000000"
+        android:pathData="M30,58 C36,50 44,45 54,43 C63,41 72,44 79,50" />
+
+    <!-- White highlight lines between bands (bottom) -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.5"
+        android:fillColor="#00000000"
+        android:pathData="M35,78 C42,72 48,70 54,70 C62,70 70,73 76,79" />
+
+    <!-- Outer white border ring -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2"
+        android:fillColor="#00000000"
+        android:pathData="M54,10 C29.7,10 10,29.7 10,54 C10,78.3 29.7,98 54,98 C78.3,98 98,78.3 98,54 C98,29.7 78.3,10 54,10 Z" />
+
+</vector>

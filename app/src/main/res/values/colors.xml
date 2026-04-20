@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="primary">#1565C0</color>
+    <color name="primary_dark">#0D47A1</color>
+    <color name="primary_light">#E3F2FD</color>
+    <color name="accent">#0288D1</color>
+    <color name="header_bg">#BBDEFB</color>
+    <color name="header_bg_dark">#90CAF9</color>
+    <color name="background">#E3F2FD</color>
+    <color name="card_bg">#FFFFFF</color>
+    <color name="text_primary">#0D47A1</color>
+    <color name="text_secondary">#1565C0</color>
+    <color name="text_hint">#90A4AE</color>
+    <color name="divider">#BBDEFB</color>
+    <color name="radio_active">#1565C0</color>
+    <color name="radio_inactive">#B0BEC5</color>
+    <color name="submit_btn">#1565C0</color>
+    <color name="submit_btn_text">#FFFFFF</color>
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+    <color name="green">#2E7D32</color>
+    <color name="orange">#E65100</color>
+    <color name="red">#C62828</color>
+    <color name="camera_btn">#0288D1</color>
+    <color name="location_bg">#F1F8FF</color>
+    <color name="settings_bg">#F5F9FF</color>
+</resources>
