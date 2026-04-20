@@ -508,20 +508,22 @@
 
                     <FrameLayout
                         android:layout_width="match_parent"
-                        android:layout_height="220dp"
+                        android:layout_height="wrap_content"
+                        android:minHeight="200dp"
                         android:background="@drawable/camera_preview_bg">
 
                         <ImageView
                             android:id="@+id/ivSelfiePreview"
                             android:layout_width="match_parent"
-                            android:layout_height="match_parent"
-                            android:scaleType="centerCrop"
+                            android:layout_height="wrap_content"
+                            android:adjustViewBounds="true"
+                            android:scaleType="fitCenter"
                             android:visibility="gone" />
 
                         <LinearLayout
                             android:id="@+id/cameraPlaceholder"
                             android:layout_width="match_parent"
-                            android:layout_height="match_parent"
+                            android:layout_height="200dp"
                             android:orientation="vertical"
                             android:gravity="center">
 
@@ -582,7 +584,7 @@
                 android:id="@+id/btnSubmit"
                 android:layout_width="match_parent"
                 android:layout_height="56dp"
-                android:text="✅  SUBMIT ATTENDANCE"
+                android:text="SUBMIT"
                 android:textSize="16sp"
                 android:textStyle="bold"
                 android:textColor="@color/white"

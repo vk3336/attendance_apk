@@ -4,7 +4,7 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
@@ -12,7 +12,6 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.provider.MediaStore;
 import android.view.View;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -44,12 +43,15 @@ import com.google.android.material.button.MaterialButton;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
 import java.util.TimeZone;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -59,8 +61,8 @@ public class MainActivity extends AppCompatActivity {
     private Spinner spinnerEmployee;
     private RadioGroup radioGroupAttendance;
     private RadioButton rbCheckIn, rbLunchOut, rbLunchIn, rbCheckOut;
-    private TextView tvDate, tvTime, tvLat, tvLng, tvAddress, tvMapHint;
-    private TextView tvDateTime, tvLatLng; // legacy hidden views
+    private TextView tvDate, tvTime, tvLat, tvLng, tvAddress;
+    private TextView tvDateTime, tvLatLng;
     private View mapHintLayout;
     private ImageView ivSelfiePreview;
     private View cameraPlaceholder;
@@ -69,23 +71,26 @@ public class MainActivity extends AppCompatActivity {
     private WebView webViewMap;
 
     // Data
-    private String selectedEmployee = null;     // employee ID
-    private String selectedEmployeeName = null; // employee name
+    private String selectedEmployee = null;
+    private String selectedEmployeeName = null;
     private List<AttendanceApiHelper.Employee> employeeList = new ArrayList<>();
     private double currentLat = 0, currentLng = 0;
     private boolean locationFetched = false;
     private Uri selfieUri = null;
-    private Bitmap selfieBitmap = null;
-    private long frozenTimestamp = 0; // captured when employee is selected (clock freeze point)
+    private long frozenTimestamp = 0;
+    private boolean isSubmitting = false;
 
     // Location
     private FusedLocationProviderClient fusedLocationClient;
     private LocationCallback locationCallback;
 
     // Clock
-    private Handler clockHandler = new Handler(Looper.getMainLooper());
+    private final Handler clockHandler = new Handler(Looper.getMainLooper());
     private Runnable clockRunnable;
     private boolean clockRunning = false;
+
+    // Background executor — fixed pool, no unbounded thread creation
+    private final ExecutorService executor = Executors.newFixedThreadPool(3);
 
     // Camera
     private Uri cameraImageUri;
@@ -96,77 +101,65 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
         initViews();
-        setupRadioButtons();
         setupClock();
-        startClock(); // start clock immediately on open
+        startClock();
         setupCamera();
         setupLocationClient();
         setupButtons();
         setupMap();
-        fetchLocation(); // auto-fetch location on open
-        loadEmployees();  // fetch employees from API
+        fetchLocation();
+        loadEmployees();
     }
 
     private void initViews() {
-        spinnerEmployee = findViewById(R.id.spinnerEmployee);
+        spinnerEmployee    = findViewById(R.id.spinnerEmployee);
         radioGroupAttendance = findViewById(R.id.radioGroupAttendance);
-        rbCheckIn = findViewById(R.id.rbCheckIn);
-        rbLunchOut = findViewById(R.id.rbLunchOut);
-        rbLunchIn = findViewById(R.id.rbLunchIn);
-        rbCheckOut = findViewById(R.id.rbCheckOut);
-        tvDate = findViewById(R.id.tvDate);
-        tvTime = findViewById(R.id.tvTime);
-        tvLat = findViewById(R.id.tvLat);
-        tvLng = findViewById(R.id.tvLng);
-        tvDateTime = findViewById(R.id.tvDateTime); // hidden, legacy
-        tvLatLng = findViewById(R.id.tvLatLng);     // hidden, legacy
-        tvAddress = findViewById(R.id.tvAddress);
-        tvMapHint = findViewById(R.id.tvMapHint);
-        mapHintLayout = findViewById(R.id.mapHintLayout);
-        ivSelfiePreview = findViewById(R.id.ivSelfiePreview);
-        cameraPlaceholder = findViewById(R.id.cameraPlaceholder);
-        btnTakeSelfie = findViewById(R.id.btnTakeSelfie);
-        btnRetakeSelfie = findViewById(R.id.btnRetakeSelfie);
-        btnGetLocation = findViewById(R.id.btnGetLocation);
-        btnSubmit = findViewById(R.id.btnSubmit);
-        btnRefresh = findViewById(R.id.btnRefresh);
-        btnSettings = findViewById(R.id.btnSettings);
-        webViewMap = findViewById(R.id.webViewMap);
+        rbCheckIn          = findViewById(R.id.rbCheckIn);
+        rbLunchOut         = findViewById(R.id.rbLunchOut);
+        rbLunchIn          = findViewById(R.id.rbLunchIn);
+        rbCheckOut         = findViewById(R.id.rbCheckOut);
+        tvDate             = findViewById(R.id.tvDate);
+        tvTime             = findViewById(R.id.tvTime);
+        tvDateTime         = findViewById(R.id.tvDateTime);
+        tvLatLng           = findViewById(R.id.tvLatLng);
+        tvLat              = findViewById(R.id.tvLat);
+        tvLng              = findViewById(R.id.tvLng);
+        tvAddress          = findViewById(R.id.tvAddress);
+        mapHintLayout      = findViewById(R.id.mapHintLayout);
+        ivSelfiePreview    = findViewById(R.id.ivSelfiePreview);
+        cameraPlaceholder  = findViewById(R.id.cameraPlaceholder);
+        btnTakeSelfie      = findViewById(R.id.btnTakeSelfie);
+        btnRetakeSelfie    = findViewById(R.id.btnRetakeSelfie);
+        btnGetLocation     = findViewById(R.id.btnGetLocation);
+        btnSubmit          = findViewById(R.id.btnSubmit);
+        btnRefresh         = findViewById(R.id.btnRefresh);
+        btnSettings        = findViewById(R.id.btnSettings);
+        webViewMap         = findViewById(R.id.webViewMap);
     }
 
+    // ── Employees ─────────────────────────────────────────────────────────────
+
     private void loadEmployees() {
-        // Show loading placeholder
         List<String> loading = new ArrayList<>();
         loading.add("Loading employees...");
-        ArrayAdapter<String> loadingAdapter = new ArrayAdapter<>(this,
-                android.R.layout.simple_spinner_item, loading);
-        loadingAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinnerEmployee.setAdapter(loadingAdapter);
+        spinnerEmployee.setAdapter(new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item, loading));
         spinnerEmployee.setEnabled(false);
 
         AttendanceApiHelper apiHelper = new AttendanceApiHelper(this);
         apiHelper.fetchEmployees(new AttendanceApiHelper.EmployeeCallback() {
-            @Override
-            public void onSuccess(List<AttendanceApiHelper.Employee> employees) {
-                runOnUiThread(() -> {
-                    employeeList = employees;
-                    setupEmployeeSpinner(employees);
-                });
+            @Override public void onSuccess(List<AttendanceApiHelper.Employee> employees) {
+                runOnUiThread(() -> { employeeList = employees; setupEmployeeSpinner(employees); });
             }
-            @Override
-            public void onError(String error) {
+            @Override public void onError(String error) {
                 runOnUiThread(() -> {
                     spinnerEmployee.setEnabled(true);
-                    List<String> errList = new ArrayList<>();
-                    errList.add("⚠ Failed to load employees");
-                    ArrayAdapter<String> errAdapter = new ArrayAdapter<>(MainActivity.this,
-                            android.R.layout.simple_spinner_item, errList);
-                    errAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-                    spinnerEmployee.setAdapter(errAdapter);
-                    Toast.makeText(MainActivity.this,
-                            "Could not load employees: " + error, Toast.LENGTH_LONG).show();
+                    List<String> err = new ArrayList<>();
+                    err.add("⚠ Failed to load");
+                    spinnerEmployee.setAdapter(new ArrayAdapter<>(MainActivity.this,
+                            android.R.layout.simple_spinner_item, err));
+                    Toast.makeText(MainActivity.this, "Could not load employees: " + error, Toast.LENGTH_LONG).show();
                 });
             }
         });
@@ -175,147 +168,100 @@ public class MainActivity extends AppCompatActivity {
     private void setupEmployeeSpinner(List<AttendanceApiHelper.Employee> employees) {
         List<String> names = new ArrayList<>();
         names.add("-- Select Employee --");
-        for (AttendanceApiHelper.Employee emp : employees) {
-            names.add(emp.name);
-        }
+        for (AttendanceApiHelper.Employee emp : employees) names.add(emp.name);
 
         ArrayAdapter<String> adapter = new ArrayAdapter<String>(this,
                 android.R.layout.simple_spinner_item, names) {
-            @Override
-            public boolean isEnabled(int position) {
-                return position != 0;
-            }
+            @Override public boolean isEnabled(int position) { return position != 0; }
         };
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerEmployee.setAdapter(adapter);
         spinnerEmployee.setEnabled(true);
 
         spinnerEmployee.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                if (position == 0) {
-                    selectedEmployee = null;
-                    selectedEmployeeName = null;
+            @Override public void onItemSelected(AdapterView<?> p, View v, int pos, long id) {
+                if (pos == 0) {
+                    selectedEmployee = null; selectedEmployeeName = null;
                     disableAttendanceControls();
                 } else {
-                    AttendanceApiHelper.Employee emp = employees.get(position - 1);
-                    selectedEmployee = emp.id;
-                    selectedEmployeeName = emp.name;
+                    AttendanceApiHelper.Employee emp = employees.get(pos - 1);
+                    selectedEmployee = emp.id; selectedEmployeeName = emp.name;
                     enableAttendanceControls();
                 }
             }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {
-                selectedEmployee = null;
-                selectedEmployeeName = null;
+            @Override public void onNothingSelected(AdapterView<?> p) {
+                selectedEmployee = null; selectedEmployeeName = null;
                 disableAttendanceControls();
             }
         });
     }
 
+    // ── Attendance controls ───────────────────────────────────────────────────
+
     private void disableAttendanceControls() {
-        rbCheckIn.setEnabled(false);
-        rbLunchOut.setEnabled(false);
-        rbLunchIn.setEnabled(false);
-        rbCheckOut.setEnabled(false);
+        rbCheckIn.setEnabled(false); rbLunchOut.setEnabled(false);
+        rbLunchIn.setEnabled(false); rbCheckOut.setEnabled(false);
         radioGroupAttendance.clearCheck();
-        // Reset labels to plain text
+        resetRadioLabels();
+        startClock();
+    }
+
+    private void resetRadioLabels() {
         rbCheckIn.setText("✅  Check In");
         rbLunchOut.setText("🍽️  Lunch Out");
         rbLunchIn.setText("🍴  Lunch In");
         rbCheckOut.setText("🚪  Check Out");
-        // Restart clock when employee is deselected
-        startClock();
     }
 
     private void enableAttendanceControls() {
-        // Freeze clock and capture timestamp at this exact moment
         frozenTimestamp = System.currentTimeMillis();
         stopClock();
-
-        // Fetch today's attendance state and enable controls accordingly
         AttendanceApiHelper apiHelper = new AttendanceApiHelper(this);
         apiHelper.fetchTodayAttendance(selectedEmployee, new AttendanceApiHelper.AttendanceStateCallback() {
-            @Override
-            public void onSuccess(AttendanceApiHelper.AttendanceState state) {
+            @Override public void onSuccess(AttendanceApiHelper.AttendanceState state) {
                 runOnUiThread(() -> updateAttendanceButtons(state));
             }
-            @Override
-            public void onError(String error) {
+            @Override public void onError(String error) {
                 runOnUiThread(() -> {
-                    // On error, default to check-in only
                     rbCheckIn.setEnabled(true);
-                    rbLunchOut.setEnabled(false);
-                    rbLunchIn.setEnabled(false);
-                    rbCheckOut.setEnabled(false);
-                    Toast.makeText(MainActivity.this,
-                        "Could not fetch attendance status: " + error, Toast.LENGTH_SHORT).show();
+                    rbLunchOut.setEnabled(false); rbLunchIn.setEnabled(false); rbCheckOut.setEnabled(false);
+                    Toast.makeText(MainActivity.this, "Could not fetch status: " + error, Toast.LENGTH_SHORT).show();
                 });
             }
         });
     }
 
     private void updateAttendanceButtons(AttendanceApiHelper.AttendanceState state) {
-        // Reset labels first
-        rbCheckIn.setText("✅  Check In");
-        rbLunchOut.setText("🍽️  Lunch Out");
-        rbLunchIn.setText("🍴  Lunch In");
-        rbCheckOut.setText("🚪  Check Out");
-
-        // Append done time to completed types
+        resetRadioLabels();
         if (state.checkedIn  && state.checkInTime  != null) rbCheckIn.setText("✅  Check In     " + state.checkInTime);
         if (state.lunchOut   && state.lunchOutTime != null) rbLunchOut.setText("🍽️  Lunch Out   " + state.lunchOutTime);
         if (state.lunchIn    && state.lunchInTime  != null) rbLunchIn.setText("🍴  Lunch In     " + state.lunchInTime);
         if (state.checkedOut && state.checkOutTime != null) rbCheckOut.setText("🚪  Check Out  " + state.checkOutTime);
 
-        // Workflow rules:
-        // 1. If nothing done today → only Check In enabled
-        // 2. If Check In done → Lunch Out and Check Out enabled (employee can skip lunch)
-        // 3. If Lunch Out done → only Lunch In enabled (must complete lunch before checkout)
-        // 4. If Lunch In done → only Check Out enabled
-        // 5. If Check Out done → all disabled (day complete)
-
         if (!state.checkedIn) {
             rbCheckIn.setEnabled(true);
-            rbLunchOut.setEnabled(false);
-            rbLunchIn.setEnabled(false);
-            rbCheckOut.setEnabled(false);
+            rbLunchOut.setEnabled(false); rbLunchIn.setEnabled(false); rbCheckOut.setEnabled(false);
         } else if (state.checkedOut) {
-            rbCheckIn.setEnabled(false);
-            rbLunchOut.setEnabled(false);
-            rbLunchIn.setEnabled(false);
-            rbCheckOut.setEnabled(false);
-            Toast.makeText(this, "✅ Attendance already completed for today", Toast.LENGTH_LONG).show();
+            rbCheckIn.setEnabled(false); rbLunchOut.setEnabled(false);
+            rbLunchIn.setEnabled(false); rbCheckOut.setEnabled(false);
+            Toast.makeText(this, "✅ Attendance completed for today", Toast.LENGTH_LONG).show();
         } else if (state.lunchOut && !state.lunchIn) {
-            rbCheckIn.setEnabled(false);
-            rbLunchOut.setEnabled(false);
-            rbLunchIn.setEnabled(true);
-            rbCheckOut.setEnabled(false);
+            rbCheckIn.setEnabled(false); rbLunchOut.setEnabled(false);
+            rbLunchIn.setEnabled(true);  rbCheckOut.setEnabled(false);
         } else if (state.lunchIn) {
-            rbCheckIn.setEnabled(false);
-            rbLunchOut.setEnabled(false);
-            rbLunchIn.setEnabled(false);
-            rbCheckOut.setEnabled(true);
+            rbCheckIn.setEnabled(false); rbLunchOut.setEnabled(false);
+            rbLunchIn.setEnabled(false); rbCheckOut.setEnabled(true);
         } else {
-            // Check-in done, can do lunch out or check out (skip lunch for half day)
-            rbCheckIn.setEnabled(false);
-            rbLunchOut.setEnabled(true);
-            rbLunchIn.setEnabled(false);
-            rbCheckOut.setEnabled(true);
+            rbCheckIn.setEnabled(false); rbLunchOut.setEnabled(true);
+            rbLunchIn.setEnabled(false); rbCheckOut.setEnabled(true);
         }
     }
 
-    private void setupRadioButtons() {
-        radioGroupAttendance.setOnCheckedChangeListener((group, checkedId) -> {
-            // Only one can be selected at a time - handled by RadioGroup automatically
-        });
-    }
+    // ── Clock ─────────────────────────────────────────────────────────────────
 
     private void setupClock() {
         clockRunnable = new Runnable() {
-            @Override
-            public void run() {
+            @Override public void run() {
                 updateDateTime();
                 clockHandler.postDelayed(this, 1000);
             }
@@ -323,62 +269,74 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void startClock() {
-        if (!clockRunning) {
-            clockRunning = true;
-            clockHandler.post(clockRunnable);
-        }
+        if (!clockRunning) { clockRunning = true; clockHandler.post(clockRunnable); }
     }
 
     private void stopClock() {
-        clockRunning = false;
-        clockHandler.removeCallbacks(clockRunnable);
+        clockRunning = false; clockHandler.removeCallbacks(clockRunnable);
     }
 
     @SuppressLint("SetTextI18n")
     private void updateDateTime() {
         Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("Asia/Kolkata"));
-        SimpleDateFormat dateFormat = new SimpleDateFormat("dd MMM yyyy", Locale.ENGLISH);
-        SimpleDateFormat timeFormat = new SimpleDateFormat("hh:mm:ss a", Locale.ENGLISH);
-        dateFormat.setTimeZone(TimeZone.getTimeZone("Asia/Kolkata"));
-        timeFormat.setTimeZone(TimeZone.getTimeZone("Asia/Kolkata"));
-        tvDate.setText(dateFormat.format(cal.getTime()));
-        tvTime.setText(timeFormat.format(cal.getTime()) + " IST");
+        SimpleDateFormat df = new SimpleDateFormat("dd MMM yyyy", Locale.ENGLISH);
+        SimpleDateFormat tf = new SimpleDateFormat("hh:mm:ss a", Locale.ENGLISH);
+        df.setTimeZone(TimeZone.getTimeZone("Asia/Kolkata"));
+        tf.setTimeZone(TimeZone.getTimeZone("Asia/Kolkata"));
+        tvDate.setText(df.format(cal.getTime()));
+        tvTime.setText(tf.format(cal.getTime()) + " IST");
     }
+
+    // ── Camera ────────────────────────────────────────────────────────────────
 
     private void setupCamera() {
         permissionLauncher = registerForActivityResult(
-                new ActivityResultContracts.RequestMultiplePermissions(),
-                result -> {
-                    Boolean cameraGranted = result.getOrDefault(Manifest.permission.CAMERA, false);
-                    if (Boolean.TRUE.equals(cameraGranted)) {
+                new ActivityResultContracts.RequestMultiplePermissions(), result -> {
+                    if (Boolean.TRUE.equals(result.getOrDefault(Manifest.permission.CAMERA, false)))
                         launchCamera();
-                    } else {
+                    else
                         Toast.makeText(this, "Camera permission required", Toast.LENGTH_SHORT).show();
-                    }
                 });
 
         cameraLauncher = registerForActivityResult(
-                new ActivityResultContracts.TakePicture(),
-                success -> {
+                new ActivityResultContracts.TakePicture(), success -> {
                     if (success && cameraImageUri != null) {
-                        try {
-                            selfieBitmap = MediaStore.Images.Media.getBitmap(
-                                    getContentResolver(), cameraImageUri);
-                            selfieUri = cameraImageUri;
-                            ivSelfiePreview.setImageBitmap(selfieBitmap);
-                            ivSelfiePreview.setVisibility(View.VISIBLE);
-                            cameraPlaceholder.setVisibility(View.GONE);
-                            btnRetakeSelfie.setVisibility(View.VISIBLE);
-                            Toast.makeText(this, "Selfie captured!", Toast.LENGTH_SHORT).show();
-                        } catch (IOException e) {
-                            Toast.makeText(this, "Failed to load image", Toast.LENGTH_SHORT).show();
-                        }
+                        selfieUri = cameraImageUri;
+                        // Load a downsampled preview only — never load full-res into memory
+                        executor.execute(() -> {
+                            try {
+                                InputStream is = getContentResolver().openInputStream(cameraImageUri);
+                                if (is == null) return;
+                                BitmapFactory.Options opts = new BitmapFactory.Options();
+                                opts.inSampleSize = 4; // 1/4 size for preview only
+                                android.graphics.Bitmap preview = BitmapFactory.decodeStream(is, null, opts);
+                                is.close();
+                                if (preview != null) {
+                                    runOnUiThread(() -> {
+                                        ivSelfiePreview.setImageBitmap(preview);
+                                        ivSelfiePreview.setVisibility(View.VISIBLE);
+                                        cameraPlaceholder.setVisibility(View.GONE);
+                                        btnRetakeSelfie.setVisibility(View.VISIBLE);
+                                        Toast.makeText(this, "Selfie captured!", Toast.LENGTH_SHORT).show();
+                                    });
+                                }
+                            } catch (Exception e) {
+                                runOnUiThread(() -> Toast.makeText(this, "Failed to load preview", Toast.LENGTH_SHORT).show());
+                            }
+                        });
                     }
                 });
     }
 
     private void launchCamera() {
         try {
+            // Delete previous temp file to free storage
+            if (cameraImageUri != null) {
+                try {
+                    File old = new File(cameraImageUri.getPath());
+                    if (old.exists()) old.delete();
+                } catch (Exception ignored) {}
+            }
             File imageFile = createImageFile();
             cameraImageUri = FileProvider.getUriForFile(this,
                     getApplicationContext().getPackageName() + ".fileprovider", imageFile);
@@ -389,11 +347,13 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private File createImageFile() throws IOException {
-        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Calendar.getInstance().getTime());
-        String imageFileName = "SELFIE_" + timeStamp + "_";
+        String ts = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
+                .format(Calendar.getInstance().getTime());
         File storageDir = getExternalFilesDir("Pictures");
-        return File.createTempFile(imageFileName, ".jpg", storageDir);
+        return File.createTempFile("SELFIE_" + ts + "_", ".jpg", storageDir);
     }
+
+    // ── Location ──────────────────────────────────────────────────────────────
 
     private void setupLocationClient() {
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
@@ -405,51 +365,35 @@ public class MainActivity extends AppCompatActivity {
                 != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this,
                     new String[]{Manifest.permission.ACCESS_FINE_LOCATION,
-                            Manifest.permission.ACCESS_COARSE_LOCATION},
-                    PERMISSION_REQUEST_CODE);
+                            Manifest.permission.ACCESS_COARSE_LOCATION}, PERMISSION_REQUEST_CODE);
             return;
         }
-
+        // Remove old callback before registering new one
+        if (locationCallback != null) {
+            fusedLocationClient.removeLocationUpdates(locationCallback);
+            locationCallback = null;
+        }
         btnGetLocation.setText("Fetching...");
         btnGetLocation.setEnabled(false);
         tvAddress.setText("📍 Fetching address...");
 
-        // Use last known location immediately for instant display
-        fusedLocationClient.getLastLocation().addOnSuccessListener(this, lastLocation -> {
-            if (lastLocation != null) {
-                currentLat = lastLocation.getLatitude();
-                currentLng = lastLocation.getLongitude();
-                locationFetched = true;
-                tvLat.setText(String.format(Locale.ENGLISH, "%.6f", currentLat));
-                tvLng.setText(String.format(Locale.ENGLISH, "%.6f", currentLng));
-                mapHintLayout.setVisibility(View.GONE);
-                loadMap(currentLat, currentLng);
-                fetchAddress(currentLat, currentLng);
-            }
+        // Show last known immediately
+        fusedLocationClient.getLastLocation().addOnSuccessListener(this, loc -> {
+            if (loc != null) updateLocation(loc.getLatitude(), loc.getLongitude());
         });
 
-        // Also request a fresh high-accuracy fix
-        LocationRequest locationRequest = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 3000)
-                .setWaitForAccurateLocation(false)
-                .setMinUpdateIntervalMillis(1000)
-                .setMaxUpdates(1)
-                .build();
+        LocationRequest req = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000)
+                .setWaitForAccurateLocation(false).setMinUpdateIntervalMillis(2000).setMaxUpdates(1).build();
 
         locationCallback = new LocationCallback() {
-            @Override
-            public void onLocationResult(LocationResult locationResult) {
+            @Override public void onLocationResult(LocationResult result) {
+                // Remove immediately to prevent further callbacks
                 fusedLocationClient.removeLocationUpdates(locationCallback);
-                if (locationResult != null && !locationResult.getLocations().isEmpty()) {
-                    Location location = locationResult.getLocations().get(0);
-                    currentLat = location.getLatitude();
-                    currentLng = location.getLongitude();
-                    locationFetched = true;
+                locationCallback = null;
+                if (result != null && !result.getLocations().isEmpty()) {
+                    Location loc = result.getLocations().get(0);
                     runOnUiThread(() -> {
-                        tvLat.setText(String.format(Locale.ENGLISH, "%.6f", currentLat));
-                        tvLng.setText(String.format(Locale.ENGLISH, "%.6f", currentLng));
-                        mapHintLayout.setVisibility(View.GONE);
-                        loadMap(currentLat, currentLng);
-                        fetchAddress(currentLat, currentLng);
+                        updateLocation(loc.getLatitude(), loc.getLongitude());
                         btnGetLocation.setText("🔄  Refresh Location");
                         btnGetLocation.setEnabled(true);
                     });
@@ -463,246 +407,227 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         };
+        fusedLocationClient.requestLocationUpdates(req, locationCallback, Looper.getMainLooper());
+    }
 
-        fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper());
+    @SuppressLint("SetTextI18n")
+    private void updateLocation(double lat, double lng) {
+        currentLat = lat; currentLng = lng; locationFetched = true;
+        tvLat.setText(String.format(Locale.ENGLISH, "%.6f", lat));
+        tvLng.setText(String.format(Locale.ENGLISH, "%.6f", lng));
+        if (mapHintLayout != null) mapHintLayout.setVisibility(View.GONE);
+        loadMap(lat, lng);
+        fetchAddress(lat, lng);
     }
 
     private void fetchAddress(double lat, double lng) {
-        new Thread(() -> {
+        executor.execute(() -> {
             try {
                 Geocoder geocoder = new Geocoder(this, Locale.ENGLISH);
                 List<Address> addresses = geocoder.getFromLocation(lat, lng, 1);
                 if (addresses != null && !addresses.isEmpty()) {
-                    Address address = addresses.get(0);
                     StringBuilder sb = new StringBuilder();
-                    for (int i = 0; i <= address.getMaxAddressLineIndex(); i++) {
-                        sb.append(address.getAddressLine(i));
-                        if (i < address.getMaxAddressLineIndex()) sb.append(", ");
+                    Address a = addresses.get(0);
+                    for (int i = 0; i <= a.getMaxAddressLineIndex(); i++) {
+                        sb.append(a.getAddressLine(i));
+                        if (i < a.getMaxAddressLineIndex()) sb.append(", ");
                     }
-                    String fullAddress = sb.toString();
-                    runOnUiThread(() -> tvAddress.setText("📍 " + fullAddress));
+                    String addr = sb.toString();
+                    runOnUiThread(() -> tvAddress.setText("📍 " + addr));
                 }
-            } catch (IOException e) {
-                runOnUiThread(() -> tvAddress.setText("Address: Unable to fetch"));
+            } catch (Exception e) {
+                runOnUiThread(() -> tvAddress.setText("📍 Address unavailable"));
             }
-        }).start();
+        });
     }
+
+    // ── Map ───────────────────────────────────────────────────────────────────
 
     @SuppressLint("SetJavaScriptEnabled")
     private void setupMap() {
-        WebSettings settings = webViewMap.getSettings();
-        settings.setJavaScriptEnabled(true);
-        settings.setDomStorageEnabled(true);
-        settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
-        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
-        settings.setLoadWithOverviewMode(true);
-        settings.setUseWideViewPort(true);
+        WebSettings s = webViewMap.getSettings();
+        s.setJavaScriptEnabled(true); s.setDomStorageEnabled(true);
+        s.setCacheMode(WebSettings.LOAD_NO_CACHE);
+        s.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+        s.setLoadWithOverviewMode(true); s.setUseWideViewPort(true);
         webViewMap.setWebViewClient(new WebViewClient());
     }
 
     private void loadMap(double lat, double lng) {
         if (mapHintLayout != null) mapHintLayout.setVisibility(View.GONE);
-        // Google Maps embed inside a full HTML page — bypasses the iframe-only restriction
         String html = "<!DOCTYPE html><html><head>"
                 + "<meta name='viewport' content='width=device-width,initial-scale=1'>"
                 + "<style>*{margin:0;padding:0;}html,body,iframe{width:100%;height:100%;border:0;}</style>"
-                + "</head><body>"
-                + "<iframe src='https://maps.google.com/maps?q=" + lat + "," + lng
-                + "&z=16&output=embed' allowfullscreen></iframe>"
-                + "</body></html>";
+                + "</head><body><iframe src='https://maps.google.com/maps?q=" + lat + "," + lng
+                + "&z=16&output=embed' allowfullscreen></iframe></body></html>";
         webViewMap.loadDataWithBaseURL("https://maps.google.com", html, "text/html", "UTF-8", null);
     }
 
+    // ── Buttons ───────────────────────────────────────────────────────────────
+
     private void setupButtons() {
         btnRefresh.setOnClickListener(v -> refreshAll());
-
-        btnSettings.setOnClickListener(v -> {
-            Intent intent = new Intent(this, SettingsActivity.class);
-            startActivity(intent);
-        });
-
+        btnSettings.setOnClickListener(v -> startActivity(new Intent(this, SettingsActivity.class)));
         btnGetLocation.setOnClickListener(v -> fetchLocation());
-
         btnTakeSelfie.setOnClickListener(v -> {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
-                    != PackageManager.PERMISSION_GRANTED) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED)
                 permissionLauncher.launch(new String[]{Manifest.permission.CAMERA});
-            } else {
-                launchCamera();
-            }
+            else launchCamera();
         });
-
         btnRetakeSelfie.setOnClickListener(v -> {
-            ivSelfiePreview.setVisibility(View.GONE);
-            cameraPlaceholder.setVisibility(View.VISIBLE);
-            btnRetakeSelfie.setVisibility(View.GONE);
-            selfieUri = null;
-            selfieBitmap = null;
+            clearSelfie();
             launchCamera();
         });
-
         btnSubmit.setOnClickListener(v -> submitAttendance());
     }
 
-    private void refreshAll() {
-        spinnerEmployee.setSelection(0);
-        radioGroupAttendance.clearCheck();
-        tvLat.setText("--");
-        tvLng.setText("--");
-        tvAddress.setText("📍 Fetching address...");
-        if (mapHintLayout != null) mapHintLayout.setVisibility(View.VISIBLE);
-        webViewMap.loadUrl("about:blank");
+    private void clearSelfie() {
+        ivSelfiePreview.setImageBitmap(null); // release bitmap reference
         ivSelfiePreview.setVisibility(View.GONE);
         cameraPlaceholder.setVisibility(View.VISIBLE);
         btnRetakeSelfie.setVisibility(View.GONE);
         selfieUri = null;
-        selfieBitmap = null;
-        selectedEmployee = null;
-        selectedEmployeeName = null;
-        locationFetched = false;
-        currentLat = 0;
-        currentLng = 0;
-        frozenTimestamp = 0;
-        startClock();       // restart live clock
-        fetchLocation();    // re-fetch location
+    }
+
+    private void refreshAll() {
+        isSubmitting = false;
+        spinnerEmployee.setSelection(0);
+        radioGroupAttendance.clearCheck();
+        resetRadioLabels();
+        tvLat.setText("--"); tvLng.setText("--");
+        tvAddress.setText("📍 Fetching address...");
+        if (mapHintLayout != null) mapHintLayout.setVisibility(View.VISIBLE);
+        webViewMap.loadUrl("about:blank");
+        clearSelfie();
+        selectedEmployee = null; selectedEmployeeName = null;
+        locationFetched = false; currentLat = 0; currentLng = 0; frozenTimestamp = 0;
+        startClock();
+        fetchLocation();
         loadEmployees();
         Toast.makeText(this, "Refreshed", Toast.LENGTH_SHORT).show();
     }
 
+    // ── Submit ────────────────────────────────────────────────────────────────
+
     private void submitAttendance() {
-        if (selectedEmployee == null) {
-            Toast.makeText(this, "Please select an employee", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        if (radioGroupAttendance.getCheckedRadioButtonId() == -1) {
-            Toast.makeText(this, "Please select attendance type", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        if (!locationFetched) {
-            Toast.makeText(this, "Please fetch your location first", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        if (selfieUri == null) {
-            Toast.makeText(this, "Please take a selfie first", Toast.LENGTH_SHORT).show();
-            return;
-        }
+        if (isSubmitting) return;
+        if (selectedEmployee == null) { Toast.makeText(this, "Please select an employee", Toast.LENGTH_SHORT).show(); return; }
+        if (radioGroupAttendance.getCheckedRadioButtonId() == -1) { Toast.makeText(this, "Please select attendance type", Toast.LENGTH_SHORT).show(); return; }
+        if (!locationFetched) { Toast.makeText(this, "Please fetch your location first", Toast.LENGTH_SHORT).show(); return; }
+        if (selfieUri == null) { Toast.makeText(this, "Please take a selfie first", Toast.LENGTH_SHORT).show(); return; }
 
         int checkedId = radioGroupAttendance.getCheckedRadioButtonId();
-        String attendanceType;
-        if (checkedId == R.id.rbCheckIn)       attendanceType = "checkIn";
+        final String attendanceType;
+        if      (checkedId == R.id.rbCheckIn)  attendanceType = "checkIn";
         else if (checkedId == R.id.rbLunchOut) attendanceType = "lunchOut";
         else if (checkedId == R.id.rbLunchIn)  attendanceType = "lunchIn";
         else                                   attendanceType = "checkOut";
 
-        long now = frozenTimestamp > 0 ? frozenTimestamp : System.currentTimeMillis();
-        AttendanceApiHelper apiHelper = new AttendanceApiHelper(this);
+        final String selfieField;
+        switch (attendanceType) {
+            case "checkIn":  selfieField = "checkInSelfie";  break;
+            case "lunchOut": selfieField = "lunchOutSelfie"; break;
+            case "lunchIn":  selfieField = "lunchInSelfie";  break;
+            default:         selfieField = "checkOutSelfie"; break;
+        }
 
+        final long now = frozenTimestamp > 0 ? frozenTimestamp : System.currentTimeMillis();
+        final Uri capturedUri = selfieUri;
+        final double lat = currentLat, lng = currentLng;
+        final String empId = selectedEmployee, empName = selectedEmployeeName;
+
+        isSubmitting = true;
         btnSubmit.setEnabled(false);
         btnSubmit.setText("Submitting...");
 
-        // Map attendance type to exact API selfie field names
-        String selfieField;
-        switch (attendanceType) {
-            case "checkIn":   selfieField = "checkInSelfie";  break;
-            case "lunchOut":  selfieField = "lunchOutSelfie"; break;
-            case "lunchIn":   selfieField = "lunchInSelfie";  break;
-            default:          selfieField = "checkOutSelfie"; break;
-        }
+        final AttendanceApiHelper api = new AttendanceApiHelper(this);
 
-        final String finalAttendanceType = attendanceType;
-
-        // Always fetch today's state first to get record ID and validate workflow
-        apiHelper.fetchTodayAttendance(selectedEmployee, new AttendanceApiHelper.AttendanceStateCallback() {
-            @Override
-            public void onSuccess(AttendanceApiHelper.AttendanceState state) {
-                // Validate workflow state before proceeding
-                if (!finalAttendanceType.equals("checkIn") && state.recordId == null) {
-                    runOnUiThread(() -> {
-                        Toast.makeText(MainActivity.this,
-                                "No check-in found for today. Please check in first.",
-                                Toast.LENGTH_LONG).show();
-                        btnSubmit.setEnabled(true);
-                        btnSubmit.setText("Submit");
-                    });
+        api.fetchTodayAttendance(empId, new AttendanceApiHelper.AttendanceStateCallback() {
+            @Override public void onSuccess(AttendanceApiHelper.AttendanceState state) {
+                if (!attendanceType.equals("checkIn") && state.recordId == null) {
+                    resetSubmitButton("No check-in found for today. Please check in first.");
                     return;
                 }
-
-                // Upload selfie then create/update record
-                apiHelper.uploadSelfie(selfieUri, selfieField, new AttendanceApiHelper.UploadCallback() {
-                    @Override
-                    public void onSuccess(String attachmentId, String attachmentName) {
+                api.uploadSelfie(capturedUri, selfieField, new AttendanceApiHelper.UploadCallback() {
+                    @Override public void onSuccess(String attachmentId, String attachmentName) {
                         AttendanceApiHelper.ApiCallback done = new AttendanceApiHelper.ApiCallback() {
-                            @Override public void onSuccess(String message) {
+                            @Override public void onSuccess(String msg) {
                                 runOnUiThread(() -> {
-                                    Toast.makeText(MainActivity.this,
-                                            "✅ Attendance submitted successfully!", Toast.LENGTH_LONG).show();
-                                    btnSubmit.setEnabled(true);
-                                    btnSubmit.setText("Submit");
-                                    refreshAll(); // restarts clock + location
+                                    isSubmitting = false;
+                                    Toast.makeText(MainActivity.this, "✅ Attendance submitted!", Toast.LENGTH_LONG).show();
+                                    clearSelfie();
+                                    resetSubmitButton(null);
+                                    radioGroupAttendance.clearCheck();
+                                    // Refresh frozen timestamp and re-fetch state for next action
+                                    frozenTimestamp = System.currentTimeMillis();
+                                    enableAttendanceControls();
                                 });
                             }
                             @Override public void onError(String error) {
-                                runOnUiThread(() -> {
-                                    Toast.makeText(MainActivity.this,
-                                            "❌ Error: " + error, Toast.LENGTH_LONG).show();
-                                    btnSubmit.setEnabled(true);
-                                    btnSubmit.setText("Submit");
-                                    startClock(); // restart clock on failure too
-                                });
+                                resetSubmitButton("❌ Error: " + error);
                             }
                         };
-
-                        if (finalAttendanceType.equals("checkIn")) {
-                            apiHelper.createAttendance(selectedEmployee, selectedEmployeeName,
-                                    now, currentLat, currentLng, attachmentId, attachmentName, done);
-                        } else {
-                            apiHelper.updateAttendance(state.recordId, finalAttendanceType,
-                                    now, currentLat, currentLng, attachmentId, attachmentName, done);
-                        }
+                        if (attendanceType.equals("checkIn"))
+                            api.createAttendance(empId, empName, now, lat, lng, attachmentId, attachmentName, done);
+                        else
+                            api.updateAttendance(state.recordId, attendanceType, now, lat, lng, attachmentId, attachmentName, done);
                     }
-                    @Override
-                    public void onError(String error) {
-                        runOnUiThread(() -> {
-                            Toast.makeText(MainActivity.this,
-                                    "❌ Selfie upload failed: " + error, Toast.LENGTH_LONG).show();
-                            btnSubmit.setEnabled(true);
-                            btnSubmit.setText("Submit");
-                            startClock(); // restart clock on upload failure
-                        });
+                    @Override public void onError(String error) {
+                        resetSubmitButton("❌ Selfie upload failed: " + error);
                     }
                 });
             }
-            @Override
-            public void onError(String error) {
-                runOnUiThread(() -> {
-                    Toast.makeText(MainActivity.this,
-                            "❌ Error checking attendance status: " + error, Toast.LENGTH_LONG).show();
-                    btnSubmit.setEnabled(true);
-                    btnSubmit.setText("Submit");
-                    startClock(); // restart clock on state fetch failure
-                });
+            @Override public void onError(String error) {
+                resetSubmitButton("❌ Error checking status: " + error);
             }
         });
+    }
+
+    private void resetSubmitButton(String msg) {
+        runOnUiThread(() -> {
+            isSubmitting = false;
+            btnSubmit.setEnabled(true);
+            btnSubmit.setText("Submit");
+            if (msg != null) {
+                Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
+                startClock();
+            }
+        });
+    }
+
+    // ── Lifecycle ─────────────────────────────────────────────────────────────
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Safety: if the app was backgrounded while submitting, reset the button
+        if (isSubmitting) {
+            isSubmitting = false;
+            btnSubmit.setEnabled(true);
+            btnSubmit.setText("Submit");
+        }
     }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == PERMISSION_REQUEST_CODE) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                fetchLocation();
-            } else {
-                Toast.makeText(this, "Location permission denied", Toast.LENGTH_SHORT).show();
-            }
-        }
+        if (requestCode == PERMISSION_REQUEST_CODE && grantResults.length > 0
+                && grantResults[0] == PackageManager.PERMISSION_GRANTED)
+            fetchLocation();
+        else if (requestCode == PERMISSION_REQUEST_CODE)
+            Toast.makeText(this, "Location permission denied", Toast.LENGTH_SHORT).show();
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
         stopClock();
-        if (locationCallback != null) {
-            fusedLocationClient.removeLocationUpdates(locationCallback);
+        clockHandler.removeCallbacksAndMessages(null);
+        if (locationCallback != null && fusedLocationClient != null) {
+            try { fusedLocationClient.removeLocationUpdates(locationCallback); } catch (Exception ignored) {}
+            locationCallback = null;
         }
+        executor.shutdownNow(); // cancel any pending background tasks
+        webViewMap.destroy();
     }
 }
