@@ -94,6 +94,7 @@ public class MainActivity extends AppCompatActivity {
 
     // Camera
     private Uri cameraImageUri;
+    private File cameraImageFile; // track actual file for safe deletion
     private ActivityResultLauncher<Uri> cameraLauncher;
     private ActivityResultLauncher<String[]> permissionLauncher;
 
@@ -302,25 +303,41 @@ public class MainActivity extends AppCompatActivity {
                 new ActivityResultContracts.TakePicture(), success -> {
                     if (success && cameraImageUri != null) {
                         selfieUri = cameraImageUri;
+                        final Uri uriToLoad = cameraImageUri;
                         // Load a downsampled preview only — never load full-res into memory
                         executor.execute(() -> {
+                            android.graphics.Bitmap preview = null;
                             try {
-                                InputStream is = getContentResolver().openInputStream(cameraImageUri);
-                                if (is == null) return;
+                                InputStream is = getContentResolver().openInputStream(uriToLoad);
+                                if (is == null) {
+                                    runOnUiThread(() -> Toast.makeText(this, "Failed to load preview", Toast.LENGTH_SHORT).show());
+                                    return;
+                                }
                                 BitmapFactory.Options opts = new BitmapFactory.Options();
                                 opts.inSampleSize = 4; // 1/4 size for preview only
-                                android.graphics.Bitmap preview = BitmapFactory.decodeStream(is, null, opts);
+                                preview = BitmapFactory.decodeStream(is, null, opts);
                                 is.close();
                                 if (preview != null) {
+                                    final android.graphics.Bitmap bmp = preview;
                                     runOnUiThread(() -> {
-                                        ivSelfiePreview.setImageBitmap(preview);
+                                        // Recycle old bitmap to free memory before setting new one
+                                        android.graphics.drawable.Drawable old = ivSelfiePreview.getDrawable();
+                                        if (old instanceof android.graphics.drawable.BitmapDrawable) {
+                                            android.graphics.Bitmap oldBmp = ((android.graphics.drawable.BitmapDrawable) old).getBitmap();
+                                            ivSelfiePreview.setImageBitmap(null);
+                                            if (oldBmp != null && !oldBmp.isRecycled()) oldBmp.recycle();
+                                        }
+                                        ivSelfiePreview.setImageBitmap(bmp);
                                         ivSelfiePreview.setVisibility(View.VISIBLE);
                                         cameraPlaceholder.setVisibility(View.GONE);
                                         btnRetakeSelfie.setVisibility(View.VISIBLE);
                                         Toast.makeText(this, "Selfie captured!", Toast.LENGTH_SHORT).show();
                                     });
+                                } else {
+                                    runOnUiThread(() -> Toast.makeText(this, "Failed to decode image", Toast.LENGTH_SHORT).show());
                                 }
                             } catch (Exception e) {
+                                if (preview != null && !preview.isRecycled()) preview.recycle();
                                 runOnUiThread(() -> Toast.makeText(this, "Failed to load preview", Toast.LENGTH_SHORT).show());
                             }
                         });
@@ -331,13 +348,13 @@ public class MainActivity extends AppCompatActivity {
     private void launchCamera() {
         try {
             // Delete previous temp file to free storage
-            if (cameraImageUri != null) {
-                try {
-                    File old = new File(cameraImageUri.getPath());
-                    if (old.exists()) old.delete();
-                } catch (Exception ignored) {}
+            if (cameraImageFile != null && cameraImageFile.exists()) {
+                cameraImageFile.delete();
+                cameraImageFile = null;
+                cameraImageUri = null;
             }
             File imageFile = createImageFile();
+            cameraImageFile = imageFile;
             cameraImageUri = FileProvider.getUriForFile(this,
                     getApplicationContext().getPackageName() + ".fileprovider", imageFile);
             cameraLauncher.launch(cameraImageUri);
@@ -482,7 +499,15 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void clearSelfie() {
-        ivSelfiePreview.setImageBitmap(null); // release bitmap reference
+        // Recycle bitmap to free memory
+        android.graphics.drawable.Drawable d = ivSelfiePreview.getDrawable();
+        if (d instanceof android.graphics.drawable.BitmapDrawable) {
+            android.graphics.Bitmap bmp = ((android.graphics.drawable.BitmapDrawable) d).getBitmap();
+            ivSelfiePreview.setImageBitmap(null);
+            if (bmp != null && !bmp.isRecycled()) bmp.recycle();
+        } else {
+            ivSelfiePreview.setImageBitmap(null);
+        }
         ivSelfiePreview.setVisibility(View.GONE);
         cameraPlaceholder.setVisibility(View.VISIBLE);
         btnRetakeSelfie.setVisibility(View.GONE);
@@ -531,7 +556,7 @@ public class MainActivity extends AppCompatActivity {
             default:         selfieField = "checkOutSelfie"; break;
         }
 
-        final long now = frozenTimestamp > 0 ? frozenTimestamp : System.currentTimeMillis();
+        final long now = System.currentTimeMillis(); // capture exact submit moment
         final Uri capturedUri = selfieUri;
         final double lat = currentLat, lng = currentLng;
         final String empId = selectedEmployee, empName = selectedEmployeeName;
@@ -550,6 +575,7 @@ public class MainActivity extends AppCompatActivity {
                 }
                 api.uploadSelfie(capturedUri, selfieField, new AttendanceApiHelper.UploadCallback() {
                     @Override public void onSuccess(String attachmentId, String attachmentName) {
+                        // Already on background thread from uploadSelfie — run API call directly
                         AttendanceApiHelper.ApiCallback done = new AttendanceApiHelper.ApiCallback() {
                             @Override public void onSuccess(String msg) {
                                 runOnUiThread(() -> {
@@ -558,7 +584,6 @@ public class MainActivity extends AppCompatActivity {
                                     clearSelfie();
                                     resetSubmitButton(null);
                                     radioGroupAttendance.clearCheck();
-                                    // Refresh frozen timestamp and re-fetch state for next action
                                     frozenTimestamp = System.currentTimeMillis();
                                     enableAttendanceControls();
                                 });
@@ -568,9 +593,9 @@ public class MainActivity extends AppCompatActivity {
                             }
                         };
                         if (attendanceType.equals("checkIn"))
-                            api.createAttendance(empId, empName, now, lat, lng, attachmentId, attachmentName, done);
+                            api.createAttendanceSync(empId, empName, now, lat, lng, attachmentId, attachmentName, done);
                         else
-                            api.updateAttendance(state.recordId, attendanceType, now, lat, lng, attachmentId, attachmentName, done);
+                            api.updateAttendanceSync(state.recordId, attendanceType, now, lat, lng, attachmentId, attachmentName, done);
                     }
                     @Override public void onError(String error) {
                         resetSubmitButton("❌ Selfie upload failed: " + error);
@@ -600,8 +625,11 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        // Safety: if the app was backgrounded while submitting, reset the button
-        if (isSubmitting) {
+        // Only reset submit state if we were NOT in the middle of a camera capture.
+        // Camera launch puts the app in background → onResume fires, but that's normal.
+        // We only reset if truly stuck (no selfie was being taken).
+        if (isSubmitting && selfieUri != null) {
+            // genuinely stuck mid-submit (e.g. app killed) — reset
             isSubmitting = false;
             btnSubmit.setEnabled(true);
             btnSubmit.setText("Submit");

@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
+import android.os.Build;
 import android.util.Base64;
 
 import org.json.JSONArray;
@@ -12,8 +13,10 @@ import org.json.JSONObject;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.security.KeyStore;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -22,14 +25,20 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManagerFactory;
+import javax.net.ssl.X509TrustManager;
+
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.ConnectionPool;
+import okhttp3.ConnectionSpec;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
+import okhttp3.TlsVersion;
 
 public class AttendanceApiHelper {
 
@@ -250,34 +259,53 @@ public class AttendanceApiHelper {
         if (selfieUri == null) { callback.onSuccess(null, null); return; }
         IO.execute(() -> {
             Bitmap bitmap = null;
+            Bitmap scaled = null;
             try {
+                // First pass: get image dimensions without loading pixels
+                BitmapFactory.Options boundsOpts = new BitmapFactory.Options();
+                boundsOpts.inJustDecodeBounds = true;
+                InputStream boundsIs = context.getContentResolver().openInputStream(selfieUri);
+                if (boundsIs == null) { callback.onError("Cannot open image"); return; }
+                BitmapFactory.decodeStream(boundsIs, null, boundsOpts);
+                boundsIs.close();
+
+                // Calculate inSampleSize to keep image under 800px wide
+                int sampleSize = 1;
+                if (boundsOpts.outWidth > 800) {
+                    sampleSize = Math.max(1, boundsOpts.outWidth / 800);
+                }
+
+                // Second pass: decode at calculated sample size
+                BitmapFactory.Options opts = new BitmapFactory.Options();
+                opts.inSampleSize = sampleSize;
+                opts.inPreferredConfig = Bitmap.Config.RGB_565; // use less memory than ARGB_8888
                 InputStream is = context.getContentResolver().openInputStream(selfieUri);
                 if (is == null) { callback.onError("Cannot open image"); return; }
-
-                // Decode at 1/2 size first to reduce memory pressure
-                BitmapFactory.Options opts = new BitmapFactory.Options();
-                opts.inSampleSize = 2;
                 bitmap = BitmapFactory.decodeStream(is, null, opts);
                 is.close();
 
                 if (bitmap == null) { callback.onError("Cannot decode image"); return; }
 
-                // Scale to max 800px wide
+                // Fine-scale to exactly 800px if still over
                 if (bitmap.getWidth() > 800) {
                     int h = (int) (bitmap.getHeight() * (800f / bitmap.getWidth()));
-                    Bitmap scaled = Bitmap.createScaledBitmap(bitmap, 800, h, true);
+                    scaled = Bitmap.createScaledBitmap(bitmap, 800, h, true);
                     bitmap.recycle();
                     bitmap = scaled;
+                    scaled = null;
                 }
 
-                // Compress to JPEG 75% — typically 80-150KB
+                // Compress to JPEG 70%
                 ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 75, baos);
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 70, baos);
+                bitmap.recycle();
+                bitmap = null;
                 byte[] imageBytes = baos.toByteArray();
                 baos.close();
 
                 String fileName = fieldName + "_" + System.currentTimeMillis() + ".jpg";
                 String base64 = "data:image/jpeg;base64," + Base64.encodeToString(imageBytes, Base64.NO_WRAP);
+                imageBytes = null; // allow GC
 
                 JSONObject body = new JSONObject();
                 body.put("name", fileName);
@@ -298,82 +326,81 @@ public class AttendanceApiHelper {
                     JSONObject json = new JSONObject(respBody);
                     callback.onSuccess(json.optString("id", null), json.optString("name", fileName));
                 }
+            } catch (OutOfMemoryError oom) {
+                callback.onError("Image too large, please retake selfie");
             } catch (Exception e) {
                 callback.onError("Upload error: " + e.getMessage());
             } finally {
                 if (bitmap != null && !bitmap.isRecycled()) bitmap.recycle();
+                if (scaled != null && !scaled.isRecycled()) scaled.recycle();
             }
         });
     }
 
-    // ── Create Attendance (Check In) ──────────────────────────────────────────
+    // ── Create Attendance Sync (called from background thread) ───────────────
 
-    public void createAttendance(String employeeMasterId, String employeeMasterName,
-                                  long timestampMillis, double lat, double lng,
-                                  String selfieId, String selfieName, ApiCallback callback) {
+    public void createAttendanceSync(String employeeMasterId, String employeeMasterName,
+                                      long timestampMillis, double lat, double lng,
+                                      String selfieId, String selfieName, ApiCallback callback) {
         if (!isConfigured()) { callback.onError("API not configured."); return; }
-        IO.execute(() -> {
-            try {
-                JSONObject body = new JSONObject();
-                body.put("employeeMasterId", employeeMasterId);
-                body.put("employeeMasterName", employeeMasterName);
-                body.put("checkInAt", toEspoDateTime(timestampMillis));
-                body.put("checkInOfficeLatitude", lat);
-                body.put("checkInOfficeLongitude", lng);
-                if (selfieId != null) {
-                    body.put("checkInSelfieId", selfieId);
-                    body.put("checkInSelfieName", selfieName);
-                }
-                try (Response r = getClient().newCall(
-                        baseRequest(getAttendanceUrl())
-                                .post(RequestBody.create(body.toString(), MediaType.parse("application/json")))
-                                .build()).execute()) {
-                    if (r.isSuccessful()) callback.onSuccess("Check In recorded");
-                    else callback.onError("Server error " + r.code() + ": " + (r.body() != null ? r.body().string() : ""));
-                }
-            } catch (Exception e) { callback.onError("Error: " + e.getMessage()); }
-        });
+        try {
+            JSONObject body = new JSONObject();
+            body.put("employeeMasterId", employeeMasterId);
+            body.put("employeeMasterName", employeeMasterName);
+            body.put("checkInAt", toEspoDateTime(timestampMillis));
+            body.put("checkInOfficeLatitude", lat);
+            body.put("checkInOfficeLongitude", lng);
+            if (selfieId != null) {
+                body.put("checkInSelfieId", selfieId);
+                body.put("checkInSelfieName", selfieName);
+            }
+            try (Response r = getClient().newCall(
+                    baseRequest(getAttendanceUrl())
+                            .post(RequestBody.create(body.toString(), MediaType.parse("application/json")))
+                            .build()).execute()) {
+                if (r.isSuccessful()) callback.onSuccess("Check In recorded");
+                else callback.onError("Server error " + r.code() + ": " + (r.body() != null ? r.body().string() : ""));
+            }
+        } catch (Exception e) { callback.onError("Error: " + e.getMessage()); }
     }
 
-    // ── Update Attendance ─────────────────────────────────────────────────────
+    // ── Update Attendance Sync (called from background thread) ────────────────
 
-    public void updateAttendance(String recordId, String attendanceType,
-                                  long timestampMillis, double lat, double lng,
-                                  String selfieId, String selfieName, ApiCallback callback) {
+    public void updateAttendanceSync(String recordId, String attendanceType,
+                                      long timestampMillis, double lat, double lng,
+                                      String selfieId, String selfieName, ApiCallback callback) {
         if (!isConfigured()) { callback.onError("API not configured."); return; }
-        IO.execute(() -> {
-            try {
-                JSONObject body = new JSONObject();
-                switch (attendanceType) {
-                    case "lunchOut":
-                        body.put("lunchOutAt", toEspoDateTime(timestampMillis));
-                        body.put("lunchStartOfficeLatitude", lat);
-                        body.put("lunchStartOfficeLongitude", lng);
-                        if (selfieId != null) { body.put("lunchOutSelfieId", selfieId); body.put("lunchOutSelfieName", selfieName); }
-                        break;
-                    case "lunchIn":
-                        body.put("lunchInAt", toEspoDateTime(timestampMillis));
-                        body.put("lunchEndOfficeLatitude", lat);
-                        body.put("lunchEndOfficeLongitude", lng);
-                        if (selfieId != null) { body.put("lunchInSelfieId", selfieId); body.put("lunchInSelfieName", selfieName); }
-                        break;
-                    case "checkOut":
-                        body.put("checkOutAt", toEspoDateTime(timestampMillis));
-                        body.put("checkOutOfficeLatitude", lat);
-                        body.put("checkOutOfficeLongitude", lng);
-                        if (selfieId != null) { body.put("checkOutSelfieId", selfieId); body.put("checkOutSelfieName", selfieName); }
-                        break;
-                    default:
-                        callback.onError("Unknown type: " + attendanceType); return;
-                }
-                try (Response r = getClient().newCall(
-                        baseRequest(getAttendanceUrl() + "/" + recordId)
-                                .put(RequestBody.create(body.toString(), MediaType.parse("application/json")))
-                                .build()).execute()) {
-                    if (r.isSuccessful()) callback.onSuccess(attendanceType + " recorded");
-                    else callback.onError("Server error " + r.code() + ": " + (r.body() != null ? r.body().string() : ""));
-                }
-            } catch (Exception e) { callback.onError("Error: " + e.getMessage()); }
-        });
+        try {
+            JSONObject body = new JSONObject();
+            switch (attendanceType) {
+                case "lunchOut":
+                    body.put("lunchOutAt", toEspoDateTime(timestampMillis));
+                    body.put("lunchStartOfficeLatitude", lat);
+                    body.put("lunchStartOfficeLongitude", lng);
+                    if (selfieId != null) { body.put("lunchOutSelfieId", selfieId); body.put("lunchOutSelfieName", selfieName); }
+                    break;
+                case "lunchIn":
+                    body.put("lunchInAt", toEspoDateTime(timestampMillis));
+                    body.put("lunchEndOfficeLatitude", lat);
+                    body.put("lunchEndOfficeLongitude", lng);
+                    if (selfieId != null) { body.put("lunchInSelfieId", selfieId); body.put("lunchInSelfieName", selfieName); }
+                    break;
+                case "checkOut":
+                    body.put("checkOutAt", toEspoDateTime(timestampMillis));
+                    body.put("checkOutOfficeLatitude", lat);
+                    body.put("checkOutOfficeLongitude", lng);
+                    if (selfieId != null) { body.put("checkOutSelfieId", selfieId); body.put("checkOutSelfieName", selfieName); }
+                    break;
+                default:
+                    callback.onError("Unknown type: " + attendanceType); return;
+            }
+            try (Response r = getClient().newCall(
+                    baseRequest(getAttendanceUrl() + "/" + recordId)
+                            .put(RequestBody.create(body.toString(), MediaType.parse("application/json")))
+                            .build()).execute()) {
+                if (r.isSuccessful()) callback.onSuccess(attendanceType + " recorded");
+                else callback.onError("Server error " + r.code() + ": " + (r.body() != null ? r.body().string() : ""));
+            }
+        } catch (Exception e) { callback.onError("Error: " + e.getMessage()); }
     }
 }

@@ -554,10 +554,12 @@
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnTakeSelfie"
                             android:layout_width="0dp"
-                            android:layout_height="48dp"
+                            android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:text="📷  Take Selfie"
                             android:textSize="14sp"
+                            android:paddingTop="12dp"
+                            android:paddingBottom="12dp"
                             app:cornerRadius="10dp"
                             android:backgroundTint="@color/camera_btn"
                             android:layout_marginEnd="6dp" />
@@ -565,10 +567,12 @@
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnRetakeSelfie"
                             android:layout_width="0dp"
-                            android:layout_height="48dp"
+                            android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:text="🔄  Retake"
                             android:textSize="14sp"
+                            android:paddingTop="12dp"
+                            android:paddingBottom="12dp"
                             app:cornerRadius="10dp"
                             android:backgroundTint="@color/orange"
                             android:visibility="gone"

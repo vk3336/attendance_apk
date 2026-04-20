@@ -41,6 +41,8 @@ anim m3_side_sheet_slide_out
 anim mtrl_bottom_sheet_slide_in
 anim mtrl_bottom_sheet_slide_out
 anim mtrl_card_lowers_interpolator
+anim splash_text_fade_in
+anim splash_zoom_out
 animator design_appbar_state_list_animator
 animator design_fab_hide_motion_spec
 animator design_fab_show_motion_spec
@@ -3335,6 +3337,7 @@ id italic
 id item_touch_helper_previous_elevation
 id ivLogo
 id ivSelfiePreview
+id ivSplashLogo
 id jumpToEnd
 id jumpToStart
 id labeled
@@ -3599,6 +3602,8 @@ id tvLatLng
 id tvLng
 id tvLocationStatus
 id tvMapHint
+id tvSplashCompany
+id tvSplashTagline
 id tvTime
 id unchecked
 id uniform
@@ -3741,6 +3746,7 @@ layout abc_select_dialog_material
 layout abc_tooltip
 layout activity_main
 layout activity_settings
+layout activity_splash
 layout custom_dialog
 layout design_bottom_navigation_item
 layout design_bottom_sheet_dialog
@@ -4534,6 +4540,7 @@ style TextAppearance_Widget_AppCompat_ExpandedMenu_Item
 style TextAppearance_Widget_AppCompat_Toolbar_Subtitle
 style TextAppearance_Widget_AppCompat_Toolbar_Title
 style Theme_AmritaAttendance
+style Theme_AmritaAttendance_Splash
 style Theme_AppCompat
 style Theme_AppCompat_CompactMenu
 style Theme_AppCompat_DayNight

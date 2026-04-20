@@ -16,16 +16,20 @@
         "source": "C:\\Users\\ADMIN\\.gradle\\daemon\\7.6.1\\com.amritaglobal.attendance.app-main-40:\\mipmap-xhdpi\\ic_launcher.png"
     },
     {
+        "merged": "C:\\Users\\ADMIN\\.gradle\\daemon\\7.6.1\\com.amritaglobal.attendance.app-merged_res-38:\\anim_splash_zoom_out.xml.flat",
+        "source": "C:\\Users\\ADMIN\\.gradle\\daemon\\7.6.1\\com.amritaglobal.attendance.app-main-40:\\anim\\splash_zoom_out.xml"
+    },
+    {
         "merged": "C:\\Users\\ADMIN\\.gradle\\daemon\\7.6.1\\com.amritaglobal.attendance.app-merged_res-38:\\drawable_logo_circle_bg.xml.flat",
         "source": "C:\\Users\\ADMIN\\.gradle\\daemon\\7.6.1\\com.amritaglobal.attendance.app-main-40:\\drawable\\logo_circle_bg.xml"
     },
     {
-        "merged": "C:\\Users\\ADMIN\\.gradle\\daemon\\7.6.1\\com.amritaglobal.attendance.app-merged_res-38:\\mipmap-xxxhdpi_ic_launcher_round.png.flat",
-        "source": "C:\\Users\\ADMIN\\.gradle\\daemon\\7.6.1\\com.amritaglobal.attendance.app-main-40:\\mipmap-xxxhdpi\\ic_launcher_round.png"
-    },
-    {
         "merged": "C:\\Users\\ADMIN\\.gradle\\daemon\\7.6.1\\com.amritaglobal.attendance.app-merged_res-38:\\drawable_ic_launcher_foreground.xml.flat",
         "source": "C:\\Users\\ADMIN\\.gradle\\daemon\\7.6.1\\com.amritaglobal.attendance.app-main-40:\\drawable\\ic_launcher_foreground.xml"
+    },
+    {
+        "merged": "C:\\Users\\ADMIN\\.gradle\\daemon\\7.6.1\\com.amritaglobal.attendance.app-merged_res-38:\\mipmap-xxxhdpi_ic_launcher_round.png.flat",
+        "source": "C:\\Users\\ADMIN\\.gradle\\daemon\\7.6.1\\com.amritaglobal.attendance.app-main-40:\\mipmap-xxxhdpi\\ic_launcher_round.png"
     },
     {
         "merged": "C:\\Users\\ADMIN\\.gradle\\daemon\\7.6.1\\com.amritaglobal.attendance.app-merged_res-38:\\mipmap-anydpi-v26_ic_launcher_round.xml.flat",
@@ -36,12 +40,12 @@
         "source": "C:\\Users\\ADMIN\\.gradle\\daemon\\7.6.1\\com.amritaglobal.attendance.app-main-40:\\drawable\\ic_launcher_background.xml"
     },
     {
-        "merged": "C:\\Users\\ADMIN\\.gradle\\daemon\\7.6.1\\com.amritaglobal.attendance.app-merged_res-38:\\mipmap-hdpi_ic_launcher_round.png.flat",
-        "source": "C:\\Users\\ADMIN\\.gradle\\daemon\\7.6.1\\com.amritaglobal.attendance.app-main-40:\\mipmap-hdpi\\ic_launcher_round.png"
-    },
-    {
         "merged": "C:\\Users\\ADMIN\\.gradle\\daemon\\7.6.1\\com.amritaglobal.attendance.app-merged_res-38:\\drawable_header_gradient.xml.flat",
         "source": "C:\\Users\\ADMIN\\.gradle\\daemon\\7.6.1\\com.amritaglobal.attendance.app-main-40:\\drawable\\header_gradient.xml"
+    },
+    {
+        "merged": "C:\\Users\\ADMIN\\.gradle\\daemon\\7.6.1\\com.amritaglobal.attendance.app-merged_res-38:\\mipmap-hdpi_ic_launcher_round.png.flat",
+        "source": "C:\\Users\\ADMIN\\.gradle\\daemon\\7.6.1\\com.amritaglobal.attendance.app-main-40:\\mipmap-hdpi\\ic_launcher_round.png"
     },
     {
         "merged": "C:\\Users\\ADMIN\\.gradle\\daemon\\7.6.1\\com.amritaglobal.attendance.app-merged_res-38:\\layout_activity_settings.xml.flat",
@@ -70,6 +74,10 @@
     {
         "merged": "C:\\Users\\ADMIN\\.gradle\\daemon\\7.6.1\\com.amritaglobal.attendance.app-merged_res-38:\\drawable_radio_item_bg.xml.flat",
         "source": "C:\\Users\\ADMIN\\.gradle\\daemon\\7.6.1\\com.amritaglobal.attendance.app-main-40:\\drawable\\radio_item_bg.xml"
+    },
+    {
+        "merged": "C:\\Users\\ADMIN\\.gradle\\daemon\\7.6.1\\com.amritaglobal.attendance.app-merged_res-38:\\layout_activity_splash.xml.flat",
+        "source": "C:\\Users\\ADMIN\\.gradle\\daemon\\7.6.1\\com.amritaglobal.attendance.app-main-40:\\layout\\activity_splash.xml"
     },
     {
         "merged": "C:\\Users\\ADMIN\\.gradle\\daemon\\7.6.1\\com.amritaglobal.attendance.app-merged_res-38:\\mipmap-xxhdpi_ic_launcher_round.png.flat",
@@ -106,6 +114,10 @@
     {
         "merged": "C:\\Users\\ADMIN\\.gradle\\daemon\\7.6.1\\com.amritaglobal.attendance.app-merged_res-38:\\drawable_ic_settings.xml.flat",
         "source": "C:\\Users\\ADMIN\\.gradle\\daemon\\7.6.1\\com.amritaglobal.attendance.app-main-40:\\drawable\\ic_settings.xml"
+    },
+    {
+        "merged": "C:\\Users\\ADMIN\\.gradle\\daemon\\7.6.1\\com.amritaglobal.attendance.app-merged_res-38:\\anim_splash_text_fade_in.xml.flat",
+        "source": "C:\\Users\\ADMIN\\.gradle\\daemon\\7.6.1\\com.amritaglobal.attendance.app-main-40:\\anim\\splash_text_fade_in.xml"
     },
     {
         "merged": "C:\\Users\\ADMIN\\.gradle\\daemon\\7.6.1\\com.amritaglobal.attendance.app-merged_res-38:\\color_radio_text_color.xml.flat",

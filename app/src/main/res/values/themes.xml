@@ -8,6 +8,11 @@
         <item name="android:statusBarColor">@color/primary_dark</item>
     </style>
 
+    <style name="Theme.AmritaAttendance.Splash" parent="Theme.AmritaAttendance">
+        <item name="android:windowBackground">@drawable/header_gradient</item>
+        <item name="android:statusBarColor">@color/header_bg_dark</item>
+    </style>
+
     <style name="CardStyle" parent="Widget.MaterialComponents.CardView">
         <item name="cardCornerRadius">12dp</item>
         <item name="cardElevation">4dp</item>
