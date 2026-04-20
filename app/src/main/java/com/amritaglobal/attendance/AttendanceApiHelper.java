@@ -29,13 +29,10 @@ import okhttp3.Response;
 
 public class AttendanceApiHelper {
 
-    private static final String ATTENDANCE_ENTITY = "CAttendance";
-    private static final String ATTACHMENT_ENTITY = "Attachment";
-
     private final Context context;
     private final OkHttpClient client;
 
-    // ── Callbacks ────────────────────────────────────────────────────────────
+    // ── Callbacks ─────────────────────────────────────────────────────────────
 
     public interface ApiCallback {
         void onSuccess(String message);
@@ -47,13 +44,9 @@ public class AttendanceApiHelper {
         void onError(String error);
     }
 
-    /** Holds today's attendance state for an employee */
-    public static class AttendanceState {
-        public String recordId;          // null = no record yet today
-        public boolean checkedIn;
-        public boolean lunchOut;
-        public boolean lunchIn;
-        public boolean checkedOut;
+    public interface UploadCallback {
+        void onSuccess(String attachmentId, String attachmentName);
+        void onError(String error);
     }
 
     public interface AttendanceStateCallback {
@@ -61,7 +54,14 @@ public class AttendanceApiHelper {
         void onError(String error);
     }
 
-    /** Simple employee model */
+    public static class AttendanceState {
+        public String recordId;
+        public boolean checkedIn;
+        public boolean lunchOut;
+        public boolean lunchIn;
+        public boolean checkedOut;
+    }
+
     public static class Employee {
         public final String id;
         public final String name;
@@ -69,7 +69,7 @@ public class AttendanceApiHelper {
         @Override public String toString() { return name; }
     }
 
-    // ── Constructor ──────────────────────────────────────────────────────────
+    // ── Constructor ───────────────────────────────────────────────────────────
 
     public AttendanceApiHelper(Context context) {
         this.context = context;
@@ -80,22 +80,39 @@ public class AttendanceApiHelper {
                 .build();
     }
 
-    // ── Helpers ──────────────────────────────────────────────────────────────
+    // ── Settings helpers ──────────────────────────────────────────────────────
 
-    private String getBaseUrl() {
-        SharedPreferences prefs = context.getSharedPreferences(
-                SettingsActivity.PREFS_NAME, Context.MODE_PRIVATE);
-        return prefs.getString(SettingsActivity.KEY_BASE_URL, "").replaceAll("/+$", "");
+    /** Full attendance URL, e.g. https://espo.egport.com/api/v1/CAttendance */
+    private String getAttendanceUrl() {
+        return pref(SettingsActivity.KEY_ATTENDANCE_URL).replaceAll("/+$", "");
+    }
+
+    /** Full employee master URL, e.g. https://espo.egport.com/api/v1/CEmployeeMaster */
+    private String getMasterUrl() {
+        return pref(SettingsActivity.KEY_MASTER_URL).replaceAll("/+$", "");
     }
 
     private String getApiKey() {
-        SharedPreferences prefs = context.getSharedPreferences(
-                SettingsActivity.PREFS_NAME, Context.MODE_PRIVATE);
-        return prefs.getString(SettingsActivity.KEY_API_KEY, "");
+        return pref(SettingsActivity.KEY_API_KEY);
+    }
+
+    private String pref(String key) {
+        return context.getSharedPreferences(SettingsActivity.PREFS_NAME, Context.MODE_PRIVATE)
+                .getString(key, "");
+    }
+
+    /**
+     * Derives the base API root from the attendance URL.
+     * e.g. https://espo.egport.com/api/v1/CAttendance → https://espo.egport.com/api/v1
+     */
+    private String getApiRoot() {
+        String url = getAttendanceUrl();
+        int idx = url.lastIndexOf('/');
+        return idx > 0 ? url.substring(0, idx) : url;
     }
 
     private boolean isConfigured() {
-        return !getBaseUrl().isEmpty() && !getApiKey().isEmpty();
+        return !getAttendanceUrl().isEmpty() && !getMasterUrl().isEmpty() && !getApiKey().isEmpty();
     }
 
     private Request.Builder baseRequest(String url) {
@@ -105,18 +122,10 @@ public class AttendanceApiHelper {
                 .addHeader("Accept", "application/json");
     }
 
-    /** Format a timestamp to EspoCRM datetime format (UTC) */
     private String toEspoDateTime(long millis) {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.ENGLISH);
         sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
         return sdf.format(new Date(millis));
-    }
-
-    /** Today's date in IST as yyyy-MM-dd */
-    private String todayDateIST() {
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH);
-        sdf.setTimeZone(TimeZone.getTimeZone("Asia/Kolkata"));
-        return sdf.format(new Date());
     }
 
     private byte[] readAllBytes(InputStream inputStream) throws IOException {
@@ -129,14 +138,14 @@ public class AttendanceApiHelper {
         return buffer.toByteArray();
     }
 
-    // ── Fetch Employees ──────────────────────────────────────────────────────
+    // ── Fetch Employees ───────────────────────────────────────────────────────
 
     public void fetchEmployees(EmployeeCallback callback) {
-        if (!isConfigured()) {
+        if (getMasterUrl().isEmpty() || getApiKey().isEmpty()) {
             callback.onError("API not configured. Please go to Settings.");
             return;
         }
-        String url = getBaseUrl() + "/api/v1/EmployeeMaster?maxSize=200&offset=0";
+        String url = getMasterUrl() + "?maxSize=200&offset=0";
         Request request = baseRequest(url).get().build();
 
         client.newCall(request).enqueue(new Callback() {
@@ -156,7 +165,7 @@ public class AttendanceApiHelper {
                     for (int i = 0; i < list.length(); i++) {
                         JSONObject emp = list.getJSONObject(i);
                         if (!emp.optBoolean("deleted", false)) {
-                            String id = emp.optString("id", "");
+                            String id   = emp.optString("id", "");
                             String name = emp.optString("name", "");
                             if (!id.isEmpty() && !name.isEmpty()) {
                                 employees.add(new Employee(id, name));
@@ -173,54 +182,31 @@ public class AttendanceApiHelper {
         });
     }
 
-    // ── Fetch Today's Attendance State ───────────────────────────────────────
+    // ── Fetch Today's Attendance State ────────────────────────────────────────
 
-    /**
-     * Queries CAttendance for today's record for the given employee.
-     * Uses a where filter on employeeMasterId + createdAt date range (IST day).
-     */
     public void fetchTodayAttendance(String employeeMasterId, AttendanceStateCallback callback) {
-        if (!isConfigured()) {
-            callback.onError("API not configured.");
-            return;
-        }
+        if (!isConfigured()) { callback.onError("API not configured."); return; }
 
-        // Build date range for today in IST (convert to UTC for query)
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH);
-        sdf.setTimeZone(TimeZone.getTimeZone("Asia/Kolkata"));
-        String today = sdf.format(new Date());
-
-        // URL-encode the where filter for EspoCRM API
-        String url = getBaseUrl() + "/api/v1/" + ATTENDANCE_ENTITY
+        String url = getAttendanceUrl()
                 + "?maxSize=5&offset=0"
                 + "&where[0][type]=equals&where[0][attribute]=employeeMasterId&where[0][value]=" + employeeMasterId
                 + "&where[1][type]=today&where[1][attribute]=createdAt"
                 + "&orderBy=createdAt&order=desc";
 
-        Request request = baseRequest(url).get().build();
-
-        client.newCall(request).enqueue(new Callback() {
+        client.newCall(baseRequest(url).get().build()).enqueue(new Callback() {
             @Override public void onFailure(Call call, IOException e) {
                 callback.onError("Network error: " + e.getMessage());
             }
             @Override public void onResponse(Call call, Response response) throws IOException {
                 try {
                     AttendanceState state = new AttendanceState();
-                    if (!response.isSuccessful()) {
-                        // Return empty state (no record yet)
-                        callback.onSuccess(state);
-                        return;
-                    }
+                    if (!response.isSuccessful()) { callback.onSuccess(state); return; }
                     String body = response.body() != null ? response.body().string() : "";
                     JSONObject json = new JSONObject(body);
                     JSONArray list = json.optJSONArray("list");
-                    if (list == null || list.length() == 0) {
-                        callback.onSuccess(state); // no record today
-                        return;
-                    }
-                    // Take the most recent record
+                    if (list == null || list.length() == 0) { callback.onSuccess(state); return; }
                     JSONObject rec = list.getJSONObject(0);
-                    state.recordId = rec.optString("id", null);
+                    state.recordId   = rec.optString("id", null);
                     state.checkedIn  = !rec.isNull("checkInAt");
                     state.lunchOut   = !rec.isNull("lunchOutAt");
                     state.lunchIn    = !rec.isNull("lunchInAt");
@@ -235,16 +221,8 @@ public class AttendanceApiHelper {
         });
     }
 
-    // ── Upload Selfie ────────────────────────────────────────────────────────
+    // ── Upload Selfie ─────────────────────────────────────────────────────────
 
-    public interface UploadCallback {
-        void onSuccess(String attachmentId, String attachmentName);
-        void onError(String error);
-    }
-
-    /**
-     * Uploads a selfie image as an EspoCRM Attachment and returns its ID.
-     */
     public void uploadSelfie(Uri selfieUri, String fieldName, UploadCallback callback) {
         if (selfieUri == null) { callback.onSuccess(null, null); return; }
         new Thread(() -> {
@@ -255,32 +233,25 @@ public class AttendanceApiHelper {
                 inputStream.close();
 
                 String fileName = fieldName + "_" + System.currentTimeMillis() + ".jpg";
+                String uploadUrl = getApiRoot() + "/Attachment";
 
-                // EspoCRM attachment upload via multipart
                 RequestBody body = new MultipartBody.Builder()
                         .setType(MultipartBody.FORM)
                         .addFormDataPart("name", fileName)
                         .addFormDataPart("type", "image/jpeg")
-                        .addFormDataPart("relatedType", ATTENDANCE_ENTITY)
+                        .addFormDataPart("relatedType", "CAttendance")
                         .addFormDataPart("field", fieldName)
                         .addFormDataPart("file", fileName,
                                 RequestBody.create(imageBytes, MediaType.parse("image/jpeg")))
                         .build();
 
-                Request request = baseRequest(getBaseUrl() + "/api/v1/" + ATTACHMENT_ENTITY)
-                        .post(body)
-                        .build();
-
-                try (Response response = client.newCall(request).execute()) {
+                try (Response response = client.newCall(baseRequest(uploadUrl).post(body).build()).execute()) {
                     if (!response.isSuccessful()) {
                         callback.onError("Upload failed: " + response.code());
                         return;
                     }
-                    String respBody = response.body() != null ? response.body().string() : "";
-                    JSONObject json = new JSONObject(respBody);
-                    String id = json.optString("id", null);
-                    String name = json.optString("name", fileName);
-                    callback.onSuccess(id, name);
+                    JSONObject json = new JSONObject(response.body() != null ? response.body().string() : "{}");
+                    callback.onSuccess(json.optString("id", null), json.optString("name", fileName));
                 }
             } catch (Exception e) {
                 callback.onError("Upload error: " + e.getMessage());
@@ -288,17 +259,13 @@ public class AttendanceApiHelper {
         }).start();
     }
 
-    // ── Submit / Update Attendance ───────────────────────────────────────────
+    // ── Create Attendance (Check In) ──────────────────────────────────────────
 
-    /**
-     * Creates a new attendance record (Check In).
-     */
     public void createAttendance(String employeeMasterId, String employeeMasterName,
                                   long timestampMillis, double lat, double lng,
                                   String selfieId, String selfieName,
                                   ApiCallback callback) {
         if (!isConfigured()) { callback.onError("API not configured."); return; }
-
         new Thread(() -> {
             try {
                 JSONObject body = new JSONObject();
@@ -311,83 +278,56 @@ public class AttendanceApiHelper {
                     body.put("checkInSelfieId", selfieId);
                     body.put("checkInSelfieName", selfieName);
                 }
-
-                Request request = baseRequest(getBaseUrl() + "/api/v1/" + ATTENDANCE_ENTITY)
-                        .post(RequestBody.create(body.toString(), MediaType.parse("application/json")))
-                        .build();
-
-                try (Response response = client.newCall(request).execute()) {
-                    if (response.isSuccessful()) {
-                        callback.onSuccess("Check In recorded");
-                    } else {
-                        String err = response.body() != null ? response.body().string() : "";
-                        callback.onError("Server error " + response.code() + ": " + err);
-                    }
+                try (Response response = client.newCall(
+                        baseRequest(getAttendanceUrl())
+                                .post(RequestBody.create(body.toString(), MediaType.parse("application/json")))
+                                .build()).execute()) {
+                    if (response.isSuccessful()) callback.onSuccess("Check In recorded");
+                    else callback.onError("Server error " + response.code() + ": " +
+                            (response.body() != null ? response.body().string() : ""));
                 }
-            } catch (Exception e) {
-                callback.onError("Error: " + e.getMessage());
-            }
+            } catch (Exception e) { callback.onError("Error: " + e.getMessage()); }
         }).start();
     }
 
-    /**
-     * Updates an existing attendance record with the given attendance type fields.
-     * attendanceType: "lunchOut", "lunchIn", "checkOut"
-     */
+    // ── Update Attendance (Lunch Out / Lunch In / Check Out) ──────────────────
+
     public void updateAttendance(String recordId, String attendanceType,
                                   long timestampMillis, double lat, double lng,
                                   String selfieId, String selfieName,
                                   ApiCallback callback) {
         if (!isConfigured()) { callback.onError("API not configured."); return; }
-
         new Thread(() -> {
             try {
                 JSONObject body = new JSONObject();
                 body.put("officeLat", lat);
                 body.put("officeLng", lng);
-
                 switch (attendanceType) {
                     case "lunchOut":
                         body.put("lunchOutAt", toEspoDateTime(timestampMillis));
-                        if (selfieId != null) {
-                            body.put("lunchOutSelfieId", selfieId);
-                            body.put("lunchOutSelfieName", selfieName);
-                        }
+                        if (selfieId != null) { body.put("lunchOutSelfieId", selfieId); body.put("lunchOutSelfieName", selfieName); }
                         break;
                     case "lunchIn":
                         body.put("lunchInAt", toEspoDateTime(timestampMillis));
-                        if (selfieId != null) {
-                            body.put("lunchInSelfieId", selfieId);
-                            body.put("lunchInSelfieName", selfieName);
-                        }
+                        if (selfieId != null) { body.put("lunchInSelfieId", selfieId); body.put("lunchInSelfieName", selfieName); }
                         break;
                     case "checkOut":
                         body.put("checkOutAt", toEspoDateTime(timestampMillis));
-                        if (selfieId != null) {
-                            body.put("checkOutSelfieId", selfieId);
-                            body.put("checkOutSelfieName", selfieName);
-                        }
+                        if (selfieId != null) { body.put("checkOutSelfieId", selfieId); body.put("checkOutSelfieName", selfieName); }
                         break;
                     default:
                         callback.onError("Unknown attendance type: " + attendanceType);
                         return;
                 }
-
-                Request request = baseRequest(getBaseUrl() + "/api/v1/" + ATTENDANCE_ENTITY + "/" + recordId)
-                        .put(RequestBody.create(body.toString(), MediaType.parse("application/json")))
-                        .build();
-
-                try (Response response = client.newCall(request).execute()) {
-                    if (response.isSuccessful()) {
-                        callback.onSuccess(attendanceType + " recorded");
-                    } else {
-                        String err = response.body() != null ? response.body().string() : "";
-                        callback.onError("Server error " + response.code() + ": " + err);
-                    }
+                try (Response response = client.newCall(
+                        baseRequest(getAttendanceUrl() + "/" + recordId)
+                                .put(RequestBody.create(body.toString(), MediaType.parse("application/json")))
+                                .build()).execute()) {
+                    if (response.isSuccessful()) callback.onSuccess(attendanceType + " recorded");
+                    else callback.onError("Server error " + response.code() + ": " +
+                            (response.body() != null ? response.body().string() : ""));
                 }
-            } catch (Exception e) {
-                callback.onError("Error: " + e.getMessage());
-            }
+            } catch (Exception e) { callback.onError("Error: " + e.getMessage()); }
         }).start();
     }
 }

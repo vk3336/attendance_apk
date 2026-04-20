@@ -69,7 +69,9 @@ public class MainActivity extends AppCompatActivity {
     private WebView webViewMap;
 
     // Data
-    private String selectedEmployee = null;
+    private String selectedEmployee = null;     // employee ID
+    private String selectedEmployeeName = null; // employee name
+    private List<AttendanceApiHelper.Employee> employeeList = new ArrayList<>();
     private double currentLat = 0, currentLng = 0;
     private boolean locationFetched = false;
     private Uri selfieUri = null;
@@ -95,7 +97,6 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         initViews();
-        setupEmployeeSpinner();
         setupRadioButtons();
         setupClock();
         startClock(); // start clock immediately on open
@@ -104,6 +105,7 @@ public class MainActivity extends AppCompatActivity {
         setupButtons();
         setupMap();
         fetchLocation(); // auto-fetch location on open
+        loadEmployees();  // fetch employees from API
     }
 
     private void initViews() {
@@ -133,15 +135,51 @@ public class MainActivity extends AppCompatActivity {
         webViewMap = findViewById(R.id.webViewMap);
     }
 
-    private void setupEmployeeSpinner() {
-        List<String> employees = new ArrayList<>();
-        employees.add("-- Select Employee --");
-        employees.add("Vivek");
-        employees.add("Archie");
-        employees.add("Test");
+    private void loadEmployees() {
+        // Show loading placeholder
+        List<String> loading = new ArrayList<>();
+        loading.add("Loading employees...");
+        ArrayAdapter<String> loadingAdapter = new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item, loading);
+        loadingAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerEmployee.setAdapter(loadingAdapter);
+        spinnerEmployee.setEnabled(false);
+
+        AttendanceApiHelper apiHelper = new AttendanceApiHelper(this);
+        apiHelper.fetchEmployees(new AttendanceApiHelper.EmployeeCallback() {
+            @Override
+            public void onSuccess(List<AttendanceApiHelper.Employee> employees) {
+                runOnUiThread(() -> {
+                    employeeList = employees;
+                    setupEmployeeSpinner(employees);
+                });
+            }
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    spinnerEmployee.setEnabled(true);
+                    List<String> errList = new ArrayList<>();
+                    errList.add("⚠ Failed to load employees");
+                    ArrayAdapter<String> errAdapter = new ArrayAdapter<>(MainActivity.this,
+                            android.R.layout.simple_spinner_item, errList);
+                    errAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                    spinnerEmployee.setAdapter(errAdapter);
+                    Toast.makeText(MainActivity.this,
+                            "Could not load employees: " + error, Toast.LENGTH_LONG).show();
+                });
+            }
+        });
+    }
+
+    private void setupEmployeeSpinner(List<AttendanceApiHelper.Employee> employees) {
+        List<String> names = new ArrayList<>();
+        names.add("-- Select Employee --");
+        for (AttendanceApiHelper.Employee emp : employees) {
+            names.add(emp.name);
+        }
 
         ArrayAdapter<String> adapter = new ArrayAdapter<String>(this,
-                android.R.layout.simple_spinner_item, employees) {
+                android.R.layout.simple_spinner_item, names) {
             @Override
             public boolean isEnabled(int position) {
                 return position != 0;
@@ -149,15 +187,19 @@ public class MainActivity extends AppCompatActivity {
         };
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerEmployee.setAdapter(adapter);
+        spinnerEmployee.setEnabled(true);
 
         spinnerEmployee.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 if (position == 0) {
                     selectedEmployee = null;
+                    selectedEmployeeName = null;
                     disableAttendanceControls();
                 } else {
-                    selectedEmployee = employees.get(position);
+                    AttendanceApiHelper.Employee emp = employees.get(position - 1);
+                    selectedEmployee = emp.id;
+                    selectedEmployeeName = emp.name;
                     enableAttendanceControls();
                 }
             }
@@ -165,6 +207,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onNothingSelected(AdapterView<?> parent) {
                 selectedEmployee = null;
+                selectedEmployeeName = null;
                 disableAttendanceControls();
             }
         });
@@ -438,11 +481,13 @@ public class MainActivity extends AppCompatActivity {
         selfieUri = null;
         selfieBitmap = null;
         selectedEmployee = null;
+        selectedEmployeeName = null;
         locationFetched = false;
         currentLat = 0;
         currentLng = 0;
         startClock();
         fetchLocation();
+        loadEmployees();
         Toast.makeText(this, "Refreshed", Toast.LENGTH_SHORT).show();
     }
 
@@ -507,7 +552,7 @@ public class MainActivity extends AppCompatActivity {
                 };
 
                 if (attendanceType.equals("checkIn")) {
-                    apiHelper.createAttendance(selectedEmployee, selectedEmployee,
+                    apiHelper.createAttendance(selectedEmployee, selectedEmployeeName,
                             now, currentLat, currentLng, attachmentId, attachmentName, done);
                 } else {
                     // Need today's record ID — fetch state first
