@@ -1,15 +1,11 @@
 [
     {
-        "merged": "C:\\Users\\ADMIN\\.gradle\\daemon\\7.6.1\\com.amritaglobal.attendance.app-mergeDebugResources-37:\\layout\\activity_main.xml",
-        "source": "C:\\Users\\ADMIN\\.gradle\\daemon\\7.6.1\\com.amritaglobal.attendance.app-main-40:\\layout\\activity_main.xml"
+        "merged": "com.amritaglobal.attendance.app-mergeDebugResources-37:/layout/activity_settings.xml",
+        "source": "com.amritaglobal.attendance.app-main-40:/layout/activity_settings.xml"
     },
     {
-        "merged": "C:\\Users\\ADMIN\\.gradle\\daemon\\7.6.1\\com.amritaglobal.attendance.app-mergeDebugResources-37:\\layout\\activity_splash.xml",
-        "source": "C:\\Users\\ADMIN\\.gradle\\daemon\\7.6.1\\com.amritaglobal.attendance.app-main-40:\\layout\\activity_splash.xml"
-    },
-    {
-        "merged": "C:\\Users\\ADMIN\\.gradle\\daemon\\7.6.1\\com.amritaglobal.attendance.app-mergeDebugResources-37:\\layout\\activity_settings.xml",
-        "source": "C:\\Users\\ADMIN\\.gradle\\daemon\\7.6.1\\com.amritaglobal.attendance.app-main-40:\\layout\\activity_settings.xml"
+        "merged": "com.amritaglobal.attendance.app-mergeDebugResources-37:/layout/activity_splash.xml",
+        "source": "com.amritaglobal.attendance.app-main-40:/layout/activity_splash.xml"
     },
     {
         "merged": "com.amritaglobal.attendance.app-mergeDebugResources-37:/layout/activity_main.xml",

@@ -1,20 +1,20 @@
 -- Merging decision tree log ---
 provider#androidx.core.content.FileProvider
-INJECTED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:44:9-52:20
+INJECTED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:46:9-54:20
 	android:grantUriPermissions
-		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:48:13-47
+		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:50:13-47
 	android:authorities
 		INJECTED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml
-		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:46:13-64
+		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:48:13-64
 	android:exported
-		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:47:13-37
+		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:49:13-37
 	android:name
-		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:45:13-62
+		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:47:13-62
 manifest
-ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:2:1-56:12
-INJECTED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:2:1-56:12
-INJECTED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:2:1-56:12
-INJECTED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:2:1-56:12
+ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:2:1-58:12
+INJECTED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:2:1-58:12
+INJECTED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:2:1-58:12
+INJECTED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:2:1-58:12
 MERGED from [androidx.databinding:viewbinding:7.4.2] C:\Users\ADMIN\.gradle\caches\transforms-3\e38d4812329573a52b27f61c314b4d7e\transformed\jetified-viewbinding-7.4.2\AndroidManifest.xml:2:1-7:12
 MERGED from [com.google.android.material:material:1.9.0] C:\Users\ADMIN\.gradle\caches\transforms-3\7dbc1193290644f92bff53933f9b6282\transformed\material-1.9.0\AndroidManifest.xml:17:1-26:12
 MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] C:\Users\ADMIN\.gradle\caches\transforms-3\51fffa832489f6676172eca8a63b5551\transformed\constraintlayout-2.1.4\AndroidManifest.xml:2:1-11:12
@@ -66,20 +66,20 @@ MERGED from [androidx.documentfile:documentfile:1.0.0] C:\Users\ADMIN\.gradle\ca
 MERGED from [androidx.localbroadcastmanager:localbroadcastmanager:1.0.0] C:\Users\ADMIN\.gradle\caches\transforms-3\0708e6126eac4b40d6e2fc382a38b2ac\transformed\localbroadcastmanager-1.0.0\AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.print:print:1.0.0] C:\Users\ADMIN\.gradle\caches\transforms-3\08ef3700afc5e1e9d33deb2bcbf4ec73\transformed\print-1.0.0\AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.annotation:annotation-experimental:1.3.0] C:\Users\ADMIN\.gradle\caches\transforms-3\e2de3b86a151c2eba8bada2939e5e77d\transformed\jetified-annotation-experimental-1.3.0\AndroidManifest.xml:17:1-22:12
-INJECTED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:2:1-56:12
-INJECTED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:2:1-56:12
-INJECTED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:2:1-56:12
+INJECTED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:2:1-58:12
+INJECTED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:2:1-58:12
+INJECTED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:2:1-58:12
 	package
 		INJECTED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml
-		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:2:1-56:12
+		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:2:1-58:12
 		INJECTED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml
 	android:versionName
 		INJECTED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml
-		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:2:1-56:12
+		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:2:1-58:12
 		INJECTED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml
 	android:versionCode
 		INJECTED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml
-		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:2:1-56:12
+		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:2:1-58:12
 		INJECTED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml
 	xmlns:android
 		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:2:11-69
@@ -114,7 +114,7 @@ ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\Andr
 	android:name
 		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:11:19-57
 application
-ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:13:5-54:19
+ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:13:5-56:19
 MERGED from [com.google.android.material:material:1.9.0] C:\Users\ADMIN\.gradle\caches\transforms-3\7dbc1193290644f92bff53933f9b6282\transformed\material-1.9.0\AndroidManifest.xml:24:5-20
 MERGED from [com.google.android.material:material:1.9.0] C:\Users\ADMIN\.gradle\caches\transforms-3\7dbc1193290644f92bff53933f9b6282\transformed\material-1.9.0\AndroidManifest.xml:24:5-20
 MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] C:\Users\ADMIN\.gradle\caches\transforms-3\51fffa832489f6676172eca8a63b5551\transformed\constraintlayout-2.1.4\AndroidManifest.xml:9:5-20
@@ -143,6 +143,8 @@ MERGED from [androidx.startup:startup-runtime:1.1.1] C:\Users\ADMIN\.gradle\cach
 MERGED from [androidx.startup:startup-runtime:1.1.1] C:\Users\ADMIN\.gradle\caches\transforms-3\2b83e1628ae0be5f031c21668cd514d4\transformed\jetified-startup-runtime-1.1.1\AndroidManifest.xml:25:5-31:19
 MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] C:\Users\ADMIN\.gradle\caches\transforms-3\f9cb0487899fca7340750d99b8c1e042\transformed\versionedparcelable-1.1.1\AndroidManifest.xml:24:5-25:19
 MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] C:\Users\ADMIN\.gradle\caches\transforms-3\f9cb0487899fca7340750d99b8c1e042\transformed\versionedparcelable-1.1.1\AndroidManifest.xml:24:5-25:19
+	android:requestLegacyExternalStorage
+		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:21:9-52
 	android:appComponentFactory
 		ADDED from [androidx.core:core:1.9.0] C:\Users\ADMIN\.gradle\caches\transforms-3\b0bb6a21c8df98e543804bcd4af9a2a1\transformed\core-1.9.0\AndroidManifest.xml:28:18-86
 	android:supportsRtl
@@ -151,6 +153,8 @@ MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] C:\Users\AD
 		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:16:9-41
 	android:roundIcon
 		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:17:9-50
+	android:largeHeap
+		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:22:9-33
 	android:icon
 		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:15:9-45
 	android:allowBackup
@@ -160,41 +164,41 @@ MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] C:\Users\AD
 	android:usesCleartextTraffic
 		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:20:9-44
 activity#com.amritaglobal.attendance.SplashActivity
-ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:22:9-31:20
+ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:24:9-33:20
 	android:screenOrientation
-		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:25:13-49
+		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:27:13-49
 	android:exported
-		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:24:13-36
+		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:26:13-36
 	android:theme
-		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:26:13-65
+		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:28:13-65
 	android:name
-		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:23:13-43
+		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:25:13-43
 intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
-ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:27:13-30:29
+ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:29:13-32:29
 action#android.intent.action.MAIN
-ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:28:17-69
+ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:30:17-69
 	android:name
-		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:28:25-66
+		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:30:25-66
 category#android.intent.category.LAUNCHER
-ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:29:17-77
+ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:31:17-77
 	android:name
-		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:29:27-74
+		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:31:27-74
 activity#com.amritaglobal.attendance.MainActivity
-ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:33:9-37:20
+ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:35:9-39:20
 	android:screenOrientation
-		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:36:13-49
+		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:38:13-49
 	android:exported
-		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:35:13-37
+		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:37:13-37
 	android:name
-		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:34:13-41
+		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:36:13-41
 activity#com.amritaglobal.attendance.SettingsActivity
-ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:39:9-42:52
+ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:41:9-44:52
 	android:screenOrientation
-		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:42:13-49
+		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:44:13-49
 	android:exported
-		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:41:13-37
+		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:43:13-37
 	android:name
-		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:40:13-45
+		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:42:13-45
 uses-sdk
 INJECTED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml reason: use-sdk injection requested
 INJECTED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml
@@ -312,11 +316,11 @@ INJECTED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\A
 		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml
 		INJECTED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml
 meta-data#android.support.FILE_PROVIDER_PATHS
-ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:49:13-51:54
+ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:51:13-53:54
 	android:resource
-		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:51:17-51
+		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:53:17-51
 	android:name
-		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:50:17-67
+		ADDED from C:\Users\ADMIN\Desktop\Attendance APK\AttendanceApp\app\src\main\AndroidManifest.xml:52:17-67
 service#androidx.camera.core.impl.MetadataHolderService
 ADDED from [androidx.camera:camera-camera2:1.2.3] C:\Users\ADMIN\.gradle\caches\transforms-3\a179d3c6f04b338e16edd81113d00443\transformed\jetified-camera-camera2-1.2.3\AndroidManifest.xml:24:9-33:19
 MERGED from [androidx.camera:camera-core:1.2.3] C:\Users\ADMIN\.gradle\caches\transforms-3\63e93cb70a55e711b8915f1c5e6097eb\transformed\jetified-camera-core-1.2.3\AndroidManifest.xml:29:9-33:78

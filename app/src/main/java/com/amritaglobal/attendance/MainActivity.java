@@ -97,6 +97,9 @@ public class MainActivity extends AppCompatActivity {
     private File cameraImageFile; // track actual file for safe deletion
     private ActivityResultLauncher<Uri> cameraLauncher;
     private ActivityResultLauncher<String[]> permissionLauncher;
+    private static final String KEY_CAMERA_URI  = "camera_image_uri";
+    private static final String KEY_SELFIE_URI  = "selfie_uri";
+    private static final String KEY_CAMERA_PATH = "camera_image_path";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -111,6 +114,16 @@ public class MainActivity extends AppCompatActivity {
         setupMap();
         fetchLocation();
         loadEmployees();
+
+        // Restore camera URI after activity recreation (e.g. killed by OS on Android 9/10)
+        if (savedInstanceState != null) {
+            String uriStr  = savedInstanceState.getString(KEY_CAMERA_URI);
+            String selfStr = savedInstanceState.getString(KEY_SELFIE_URI);
+            String path    = savedInstanceState.getString(KEY_CAMERA_PATH);
+            if (uriStr != null)  cameraImageUri  = Uri.parse(uriStr);
+            if (selfStr != null) selfieUri        = Uri.parse(selfStr);
+            if (path != null)    cameraImageFile  = new File(path);
+        }
     }
 
     private void initViews() {
@@ -301,7 +314,15 @@ public class MainActivity extends AppCompatActivity {
 
         cameraLauncher = registerForActivityResult(
                 new ActivityResultContracts.TakePicture(), success -> {
-                    if (success && cameraImageUri != null) {
+                    // On Android 9/10 low-RAM devices, the activity can be killed while
+                    // the camera is open. cameraImageUri is restored from savedInstanceState,
+                    // but if it's still null here, we cannot proceed.
+                    if (cameraImageUri == null) {
+                        runOnUiThread(() -> Toast.makeText(this,
+                                "Camera error: please try again", Toast.LENGTH_SHORT).show());
+                        return;
+                    }
+                    if (success) {
                         selfieUri = cameraImageUri;
                         final Uri uriToLoad = cameraImageUri;
                         // Load a downsampled preview only — never load full-res into memory
@@ -341,6 +362,11 @@ public class MainActivity extends AppCompatActivity {
                                 runOnUiThread(() -> Toast.makeText(this, "Failed to load preview", Toast.LENGTH_SHORT).show());
                             }
                         });
+                    } else {
+                        // User cancelled or camera failed — don't reset the whole UI,
+                        // just leave the selfie state as-is so user can try again
+                        runOnUiThread(() -> Toast.makeText(this,
+                                "Camera cancelled", Toast.LENGTH_SHORT).show());
                     }
                 });
     }
@@ -366,7 +392,13 @@ public class MainActivity extends AppCompatActivity {
     private File createImageFile() throws IOException {
         String ts = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
                 .format(Calendar.getInstance().getTime());
+        // getExternalFilesDir can return null on some Android 10 (MIUI) devices —
+        // fall back to internal cache dir which is always available
         File storageDir = getExternalFilesDir("Pictures");
+        if (storageDir == null || (!storageDir.exists() && !storageDir.mkdirs())) {
+            storageDir = new File(getCacheDir(), "images");
+            if (!storageDir.exists()) storageDir.mkdirs();
+        }
         return File.createTempFile("SELFIE_" + ts + "_", ".jpg", storageDir);
     }
 
@@ -623,13 +655,21 @@ public class MainActivity extends AppCompatActivity {
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
     @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        // Persist URIs so they survive activity kill on low-RAM Android 9/10 devices
+        if (cameraImageUri != null)  outState.putString(KEY_CAMERA_URI,  cameraImageUri.toString());
+        if (selfieUri != null)       outState.putString(KEY_SELFIE_URI,  selfieUri.toString());
+        if (cameraImageFile != null) outState.putString(KEY_CAMERA_PATH, cameraImageFile.getAbsolutePath());
+    }
+
+    @Override
     protected void onResume() {
         super.onResume();
-        // Only reset submit state if we were NOT in the middle of a camera capture.
-        // Camera launch puts the app in background → onResume fires, but that's normal.
-        // We only reset if truly stuck (no selfie was being taken).
-        if (isSubmitting && selfieUri != null) {
-            // genuinely stuck mid-submit (e.g. app killed) — reset
+        // Reset submit button only if genuinely stuck mid-submit with no selfie
+        // (activity was killed while submitting). Do NOT reset if selfie exists —
+        // that means we're returning normally from camera.
+        if (isSubmitting && selfieUri == null) {
             isSubmitting = false;
             btnSubmit.setEnabled(true);
             btnSubmit.setText("Submit");

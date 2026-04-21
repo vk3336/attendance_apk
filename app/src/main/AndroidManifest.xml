@@ -17,7 +17,9 @@
         android:roundIcon="@drawable/ic_launcher"
         android:supportsRtl="true"
         android:theme="@style/Theme.AmritaAttendance"
-        android:usesCleartextTraffic="true">
+        android:usesCleartextTraffic="true"
+        android:requestLegacyExternalStorage="true"
+        android:largeHeap="true">
 
         <activity
             android:name=".SplashActivity"

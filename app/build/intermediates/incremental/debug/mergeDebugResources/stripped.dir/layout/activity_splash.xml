@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:background="@drawable/header_gradient"
+    android:padding="32dp">
+
+    <!-- Logo with circle background -->
+    <ImageView
+        android:id="@+id/ivSplashLogo"
+        android:layout_width="120dp"
+        android:layout_height="120dp"
+        android:src="@drawable/logo_company"
+        android:scaleType="centerCrop"
+        android:background="@drawable/logo_circle_bg"
+        android:clipToOutline="true"
+        android:elevation="8dp"
+        android:contentDescription="Company Logo" />
+
+    <!-- Company Name -->
+    <TextView
+        android:id="@+id/tvSplashCompany"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Amrita Global Enterprises"
+        android:textColor="@color/primary_dark"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:layout_marginTop="20dp"
+        android:letterSpacing="0.03" />
+
+    <!-- Tagline / App name -->
+    <TextView
+        android:id="@+id/tvSplashTagline"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Attendance Management"
+        android:textColor="@color/accent"
+        android:textSize="14sp"
+        android:gravity="center"
+        android:layout_marginTop="6dp"
+        android:letterSpacing="0.05" />
+
+</LinearLayout>
