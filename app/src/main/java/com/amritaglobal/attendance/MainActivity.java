@@ -97,9 +97,20 @@ public class MainActivity extends AppCompatActivity {
     private File cameraImageFile; // track actual file for safe deletion
     private ActivityResultLauncher<Uri> cameraLauncher;
     private ActivityResultLauncher<String[]> permissionLauncher;
-    private static final String KEY_CAMERA_URI  = "camera_image_uri";
-    private static final String KEY_SELFIE_URI  = "selfie_uri";
-    private static final String KEY_CAMERA_PATH = "camera_image_path";
+
+    // Bundle keys — all form state persisted for Android 9/10 activity-kill survival
+    private static final String KEY_CAMERA_URI       = "camera_image_uri";
+    private static final String KEY_SELFIE_URI       = "selfie_uri";
+    private static final String KEY_CAMERA_PATH      = "camera_image_path";
+    private static final String KEY_EMP_ID           = "selected_employee_id";
+    private static final String KEY_EMP_NAME         = "selected_employee_name";
+    private static final String KEY_LAT              = "current_lat";
+    private static final String KEY_LNG              = "current_lng";
+    private static final String KEY_ADDRESS          = "current_address";
+    private static final String KEY_LOCATION_FETCHED = "location_fetched";
+    private static final String KEY_FROZEN_TS        = "frozen_timestamp";
+    private static final String KEY_CHECKED_RADIO    = "checked_radio_id";
+    private static final String KEY_CLOCK_STOPPED    = "clock_stopped";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -107,23 +118,192 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         initViews();
         setupClock();
-        startClock();
         setupCamera();
         setupLocationClient();
         setupButtons();
         setupMap();
-        fetchLocation();
-        loadEmployees();
 
-        // Restore camera URI after activity recreation (e.g. killed by OS on Android 9/10)
         if (savedInstanceState != null) {
-            String uriStr  = savedInstanceState.getString(KEY_CAMERA_URI);
-            String selfStr = savedInstanceState.getString(KEY_SELFIE_URI);
-            String path    = savedInstanceState.getString(KEY_CAMERA_PATH);
-            if (uriStr != null)  cameraImageUri  = Uri.parse(uriStr);
-            if (selfStr != null) selfieUri        = Uri.parse(selfStr);
-            if (path != null)    cameraImageFile  = new File(path);
+            restoreState(savedInstanceState);
+        } else {
+            startClock();
+            fetchLocation();
+            loadEmployees();
         }
+    }
+
+    /**
+     * Restore all form state after activity recreation (Android 9/10 low-RAM kill).
+     * Employees are re-fetched from API, but selection + all other fields are restored.
+     */
+    private void restoreState(Bundle s) {
+        // Restore camera/selfie URIs
+        String uriStr  = s.getString(KEY_CAMERA_URI);
+        String selfStr = s.getString(KEY_SELFIE_URI);
+        String path    = s.getString(KEY_CAMERA_PATH);
+        if (uriStr != null)  cameraImageUri = Uri.parse(uriStr);
+        if (path != null)    cameraImageFile = new File(path);
+        if (selfStr != null) selfieUri = Uri.parse(selfStr);
+
+        // Restore data fields
+        selectedEmployee     = s.getString(KEY_EMP_ID);
+        selectedEmployeeName = s.getString(KEY_EMP_NAME);
+        currentLat           = s.getDouble(KEY_LAT, 0);
+        currentLng           = s.getDouble(KEY_LNG, 0);
+        locationFetched      = s.getBoolean(KEY_LOCATION_FETCHED, false);
+        frozenTimestamp      = s.getLong(KEY_FROZEN_TS, 0);
+        boolean clockStopped = s.getBoolean(KEY_CLOCK_STOPPED, false);
+        int checkedRadioId   = s.getInt(KEY_CHECKED_RADIO, -1);
+        String savedAddress  = s.getString(KEY_ADDRESS, "");
+
+        // Restore clock state
+        if (clockStopped && frozenTimestamp > 0) {
+            // Show the frozen time on the display
+            Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("Asia/Kolkata"));
+            cal.setTimeInMillis(frozenTimestamp);
+            SimpleDateFormat df = new SimpleDateFormat("dd MMM yyyy", Locale.ENGLISH);
+            SimpleDateFormat tf = new SimpleDateFormat("hh:mm:ss a", Locale.ENGLISH);
+            df.setTimeZone(TimeZone.getTimeZone("Asia/Kolkata"));
+            tf.setTimeZone(TimeZone.getTimeZone("Asia/Kolkata"));
+            tvDate.setText(df.format(cal.getTime()));
+            tvTime.setText(tf.format(cal.getTime()) + " IST");
+            // Keep clock stopped
+        } else {
+            startClock();
+        }
+
+        // Restore location display
+        if (locationFetched && currentLat != 0) {
+            tvLat.setText(String.format(Locale.ENGLISH, "%.6f", currentLat));
+            tvLng.setText(String.format(Locale.ENGLISH, "%.6f", currentLng));
+            if (!savedAddress.isEmpty()) tvAddress.setText(savedAddress);
+            if (mapHintLayout != null) mapHintLayout.setVisibility(View.GONE);
+            loadMap(currentLat, currentLng);
+            btnGetLocation.setText("🔄  Refresh Location");
+        } else {
+            fetchLocation();
+        }
+
+        // Restore selfie preview
+        if (selfieUri != null) {
+            final Uri uriToShow = selfieUri;
+            executor.execute(() -> {
+                android.graphics.Bitmap preview = null;
+                try {
+                    InputStream is = getContentResolver().openInputStream(uriToShow);
+                    if (is == null) return;
+                    BitmapFactory.Options opts = new BitmapFactory.Options();
+                    opts.inSampleSize = 4;
+                    preview = BitmapFactory.decodeStream(is, null, opts);
+                    is.close();
+                    if (preview != null) {
+                        final android.graphics.Bitmap bmp = preview;
+                        runOnUiThread(() -> {
+                            ivSelfiePreview.setImageBitmap(bmp);
+                            ivSelfiePreview.setVisibility(View.VISIBLE);
+                            cameraPlaceholder.setVisibility(View.GONE);
+                            btnRetakeSelfie.setVisibility(View.VISIBLE);
+                        });
+                    }
+                } catch (Exception e) {
+                    if (preview != null && !preview.isRecycled()) preview.recycle();
+                }
+            });
+        }
+
+        // Reload employees, then restore spinner + radio selection
+        final int savedRadioId = checkedRadioId;
+        loadEmployeesAndRestore(selectedEmployee, savedRadioId);
+    }
+
+    /**
+     * Fetch employees and after loading, restore the previously selected employee + radio button.
+     */
+    private void loadEmployeesAndRestore(String empIdToRestore, int radioIdToRestore) {
+        List<String> loading = new ArrayList<>();
+        loading.add("Loading employees...");
+        spinnerEmployee.setAdapter(new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item, loading));
+        spinnerEmployee.setEnabled(false);
+
+        AttendanceApiHelper apiHelper = new AttendanceApiHelper(this);
+        apiHelper.fetchEmployees(new AttendanceApiHelper.EmployeeCallback() {
+            @Override public void onSuccess(List<AttendanceApiHelper.Employee> employees) {
+                runOnUiThread(() -> {
+                    employeeList = employees;
+                    setupEmployeeSpinnerWithRestore(employees, empIdToRestore, radioIdToRestore);
+                });
+            }
+            @Override public void onError(String error) {
+                runOnUiThread(() -> {
+                    spinnerEmployee.setEnabled(true);
+                    List<String> err = new ArrayList<>();
+                    err.add("⚠ Failed to load");
+                    spinnerEmployee.setAdapter(new ArrayAdapter<>(MainActivity.this,
+                            android.R.layout.simple_spinner_item, err));
+                    Toast.makeText(MainActivity.this, "Could not reload employees: " + error, Toast.LENGTH_LONG).show();
+                });
+            }
+        });
+    }
+
+    /**
+     * Setup spinner and silently restore the previously selected employee without
+     * triggering enableAttendanceControls() (which would re-fetch and reset radio buttons).
+     */
+    private void setupEmployeeSpinnerWithRestore(List<AttendanceApiHelper.Employee> employees,
+                                                  String empIdToRestore, int radioIdToRestore) {
+        List<String> names = new ArrayList<>();
+        names.add("-- Select Employee --");
+        int restorePos = 0;
+        for (int i = 0; i < employees.size(); i++) {
+            names.add(employees.get(i).name);
+            if (employees.get(i).id.equals(empIdToRestore)) restorePos = i + 1;
+        }
+
+        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this,
+                android.R.layout.simple_spinner_item, names) {
+            @Override public boolean isEnabled(int position) { return position != 0; }
+        };
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerEmployee.setAdapter(adapter);
+        spinnerEmployee.setEnabled(true);
+
+        // Restore selection silently (suppress the listener during programmatic set)
+        final int finalPos = restorePos;
+        spinnerEmployee.setOnItemSelectedListener(null); // detach listener temporarily
+        spinnerEmployee.setSelection(finalPos, false);
+
+        // Restore radio button selection
+        if (radioIdToRestore != -1 && finalPos > 0) {
+            radioGroupAttendance.check(radioIdToRestore);
+            // Re-enable the correct radio buttons based on which one was selected
+            rbCheckIn.setEnabled(radioIdToRestore == R.id.rbCheckIn);
+            rbLunchOut.setEnabled(radioIdToRestore == R.id.rbLunchOut);
+            rbLunchIn.setEnabled(radioIdToRestore == R.id.rbLunchIn);
+            rbCheckOut.setEnabled(radioIdToRestore == R.id.rbCheckOut);
+        }
+
+        // Now attach the real listener
+        spinnerEmployee.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(AdapterView<?> p, View v, int pos, long id) {
+                if (pos == 0) {
+                    selectedEmployee = null; selectedEmployeeName = null;
+                    disableAttendanceControls();
+                } else {
+                    AttendanceApiHelper.Employee emp = employees.get(pos - 1);
+                    // Only trigger full reload if employee actually changed
+                    if (!emp.id.equals(selectedEmployee)) {
+                        selectedEmployee = emp.id; selectedEmployeeName = emp.name;
+                        enableAttendanceControls();
+                    }
+                }
+            }
+            @Override public void onNothingSelected(AdapterView<?> p) {
+                selectedEmployee = null; selectedEmployeeName = null;
+                disableAttendanceControls();
+            }
+        });
     }
 
     private void initViews() {
@@ -588,7 +768,9 @@ public class MainActivity extends AppCompatActivity {
             default:         selfieField = "checkOutSelfie"; break;
         }
 
-        final long now = System.currentTimeMillis(); // capture exact submit moment
+        // Use the frozen timestamp captured when employee was selected (clock stop moment),
+        // not the current real time — this is the intended check-in/out time shown on screen.
+        final long now = (frozenTimestamp > 0) ? frozenTimestamp : System.currentTimeMillis();
         final Uri capturedUri = selfieUri;
         final double lat = currentLat, lng = currentLng;
         final String empId = selectedEmployee, empName = selectedEmployeeName;
@@ -657,10 +839,25 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
-        // Persist URIs so they survive activity kill on low-RAM Android 9/10 devices
+        // Persist ALL form state so it survives activity kill on low-RAM Android 9/10 devices
         if (cameraImageUri != null)  outState.putString(KEY_CAMERA_URI,  cameraImageUri.toString());
         if (selfieUri != null)       outState.putString(KEY_SELFIE_URI,  selfieUri.toString());
         if (cameraImageFile != null) outState.putString(KEY_CAMERA_PATH, cameraImageFile.getAbsolutePath());
+        if (selectedEmployee != null)     outState.putString(KEY_EMP_ID,   selectedEmployee);
+        if (selectedEmployeeName != null) outState.putString(KEY_EMP_NAME, selectedEmployeeName);
+        outState.putDouble(KEY_LAT, currentLat);
+        outState.putDouble(KEY_LNG, currentLng);
+        outState.putBoolean(KEY_LOCATION_FETCHED, locationFetched);
+        outState.putLong(KEY_FROZEN_TS, frozenTimestamp);
+        outState.putBoolean(KEY_CLOCK_STOPPED, !clockRunning);
+        // Save address text
+        if (tvAddress != null) {
+            String addr = tvAddress.getText().toString();
+            outState.putString(KEY_ADDRESS, addr);
+        }
+        // Save selected radio button
+        int checkedId = radioGroupAttendance.getCheckedRadioButtonId();
+        outState.putInt(KEY_CHECKED_RADIO, checkedId);
     }
 
     @Override
